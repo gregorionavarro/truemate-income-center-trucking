@@ -1,0 +1,16 @@
+name: Run September restore
+on:
+  push:
+    paths:
+      - '.github/workflows/run-restore-september.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call restore endpoint
+        run: |
+          sleep 10
+          curl --fail --silent --show-error https://truemate-income-center-trucking.pages.dev/api/restore-september
