@@ -1,0 +1,43 @@
+name: Migrate Trucking state
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/migrate-state.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  migrate-state:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read old Trucking state
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL --max-time 30 https://truemate-income-center.pages.dev/api/state -o old.json
+          python - <<'PY'
+          import json
+          d=json.load(open('old.json'))
+          s=d.get('state',d)
+          assert isinstance(s.get('r'),list), 'old state has no records array'
+          print('records',len(s.get('r',[])),'tasks',len(s.get('t',[])))
+          json.dump({'state':s},open('payload.json','w'))
+          PY
+      - name: Write state to independent Trucking D1
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL --max-time 30 -X POST \
+            -H 'content-type: application/json' \
+            --data-binary @payload.json \
+            https://truemate-income-center-trucking.pages.dev/api/state \
+            -o result.json
+          cat result.json
+          python - <<'PY'
+          import json
+          d=json.load(open('result.json'))
+          assert d.get('ok') is True, d
+          PY
