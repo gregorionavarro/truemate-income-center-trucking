@@ -1,0 +1,71 @@
+name: Bootstrap confirmed Trucking data
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/bootstrap-confirmed-data.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add confirmed September bootstrap state
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > functions/api/default-state.js <<'EOF'
+          export const DEFAULT_STATE = {
+            r: [
+              {id:'SEP-REC10296-01',client:'',company:'J&J GLOBAL TRANSPORT LLC',invoice:'REC10296',producer:'Andres Guisao',date:'2026-09-28',method:'Zelle',gross:100,agencyFee:100,procFee:0,net:100,depStatus:'Depositado',depDate:'',pending:0,defDate:'',defAmt:0,downPayment:0,carrier:'',carrierAmt:0,carrierDue:'',carrierStatus:'',note:''},
+              {id:'SEP-REC10290-01',client:'Juan Carlos Gutierrez',company:'J&J GLOBAL TRANSPORT LLC',invoice:'REC10290',producer:'Andres Guisao',date:'2026-09-25',method:'Zelle',gross:1394,agencyFee:1000.66,procFee:0,net:1394,depStatus:'Depositado',depDate:'',pending:0,defDate:'',defAmt:0,downPayment:393.94,carrier:'Rocklake',carrierAmt:393.94,carrierDue:'2026-09-30',carrierStatus:'Revisado',carrierAssignedTo:'Gregorio Navarro',note:'Arrastre de septiembre · pendiente de pago'},
+              {id:'SEP-REC10295-01',client:'',company:'CABRERA TRANSPORT CORP',invoice:'REC10295',producer:'Marcela Hernandez',date:'2026-09-24',method:'Stripe',gross:1545.30,agencyFee:1500,procFee:45.11,net:1500.19,depStatus:'Depositado',depDate:'',pending:0,defDate:'',defAmt:0,downPayment:0,carrier:'',carrierAmt:0,carrierDue:'',carrierStatus:'',note:''},
+              {id:'SEP-REC10295-02',client:'',company:'CABRERA TRANSPORT CORP',invoice:'REC10295',producer:'Marcela Hernandez',date:'2026-09-24',method:'Stripe',gross:1500,agencyFee:1500,procFee:43.80,net:1456.20,depStatus:'Depositado',depDate:'',pending:0,defDate:'',defAmt:0,downPayment:0,carrier:'',carrierAmt:0,carrierDue:'',carrierStatus:'',note:''},
+              {id:'SEP-REC10294-01',client:'',company:'GARCIA TRUCKING',invoice:'REC10294',producer:'Marcela Hernandez',date:'2026-09-23',method:'Stripe',gross:1030,agencyFee:0,procFee:30.17,net:999.83,depStatus:'Depositado',depDate:'',pending:0,defDate:'',defAmt:0,downPayment:0,carrier:'',carrierAmt:0,carrierDue:'',carrierStatus:'',note:''}
+            ],
+            p: ['Andres Guisao','Marcela Hernandez'],
+            c: ['Rocklake','RPS','Guardian','Burns and Wilcox'],
+            t: [], a: [], h: [], n: [],
+            l: {
+              'RPS':'https://rpsins.epaypolicy.com/',
+              'Guardian':'https://guardian-ins.epaypolicy.com/',
+              'Rocklake':'https://rocklakeig.epaypolicy.com/',
+              'Burns and Wilcox':'https://burnsandwilcox.epaypolicy.com/'
+            },
+            w: {
+              users: [
+                {name:'Gregorio Navarro',email:'gregorio.navarro@truemategroup.com',active:true},
+                {name:'Paulina Bermudez',email:'paula.bermudez@truemategroup.com',active:true},
+                {name:'Camila',email:'camila@truemategroup.com',active:true},
+                {name:'Fabiola Bermudez',email:'fabiola.bermudez@truemategroup.com',active:true}
+              ],
+              assignments: {
+                carrierReview:'paula.bermudez@truemategroup.com',
+                carrierPayment:'gregorio.navarro@truemategroup.com',
+                deferredCollection:'camila@truemategroup.com'
+              },
+              internalNotifications:true
+            }
+          };
+          EOF
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('functions/api/state.js')
+          s=p.read_text()
+          s2=re.sub(r'^const DEFAULT_STATE = \{.*?\n\};\n\nasync function ensureTable', "import { DEFAULT_STATE } from './default-state.js';\n\nasync function ensureTable", s, count=1, flags=re.S)
+          if s2==s:
+              raise SystemExit('DEFAULT_STATE block not replaced')
+          p.write_text(s2)
+          PY
+      - name: Commit bootstrap state
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add functions/api/state.js functions/api/default-state.js
+          git commit -m "Bootstrap confirmed September Trucking data"
+          git push
