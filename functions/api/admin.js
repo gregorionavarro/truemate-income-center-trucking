@@ -3,12 +3,12 @@ const OWNER_EMAIL = "gregorio.navarro@truemategroup.com";
 const DEFAULT_W = {
   users: [
     { name: "Gregorio Navarro", email: "gregorio.navarro@truemategroup.com", active: true },
-    { name: "Paula Bermudez", email: "paula.bermudez@truemategroup.com", active: true },
-    { name: "Camila", email: "camila@truemategroup.com", active: true },
+    { name: "Paulina Restrepo", email: "paulina@truemategroup.com", active: true },
+    { name: "Camila Penagos", email: "camila@truemategroup.com", active: true },
     { name: "Fabiola Bermudez", email: "fabiola.bermudez@truemategroup.com", active: true }
   ],
   assignments: {
-    carrierReview: "paula.bermudez@truemategroup.com",
+    carrierReview: "paulina@truemategroup.com",
     carrierPayment: "gregorio.navarro@truemategroup.com",
     deferredCollection: "camila@truemategroup.com"
   },
