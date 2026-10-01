@@ -1,0 +1,77 @@
+name: Migrate Trucking files
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/migrate-trucking.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Copy Trucking application files from stable source
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://raw.githubusercontent.com/gregorionavarro/truemate-income-center/main"
+          files=(
+            "admin.html"
+            "app.html"
+            "index.html"
+            "app-notices.js"
+            "audit-responsibilities.js"
+            "business-rules-v2.js"
+            "camila-carrier-flow.js"
+            "carrier-delete-tools.js"
+            "carrier-global-card-v3.js"
+            "carrier-overdue-fix.js"
+            "carrier-payment-portals.js"
+            "carrier-pending-guard.js"
+            "carrier-review-flex.js"
+            "carrier-review-workflow.js"
+            "dashboard-extras.js"
+            "dashboard-stable.js"
+            "deferred-breakdown.js"
+            "deferred-income-fix.js"
+            "deferred-payment-fix.js"
+            "delete-tools.js"
+            "executive-rankings.js"
+            "filters-v2.js"
+            "final-ops-fixes.js"
+            "income-client-note.js"
+            "income-review.js"
+            "invoice-guard.js"
+            "month-context.js"
+            "monthly-executive.js"
+            "operational-tools.js"
+            "owner-link.js"
+            "recent-final.js"
+            "shared.html"
+            "summary-payments-layout.js"
+            "sync-bridge.js"
+            "tasks-stable.js"
+            "functions/api/admin.js"
+            "functions/api/audit.js"
+            "functions/api/state.js"
+          )
+          for f in "${files[@]}"; do
+            mkdir -p "$(dirname "$f")"
+            curl -fsSL "$BASE/$f" -o "$f"
+          done
+      - name: Commit migrated files
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Migrate complete Trucking application"
+            git push
+          fi
