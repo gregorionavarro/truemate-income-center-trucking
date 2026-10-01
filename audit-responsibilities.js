@@ -1,0 +1,83 @@
+(() => {
+  if (window.__tmAuditResponsibilitiesLoaded) return;
+  window.__tmAuditResponsibilitiesLoaded = true;
+
+  const $ = id => document.getElementById(id);
+  const esc = v => String(v ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const uid = () => 'ar'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+  const nowIso = () => new Date().toISOString();
+  const today = () => new Date().toISOString().slice(0,10);
+  const DEFAULT_CFG = {
+    users:[
+      {name:'Gregorio Navarro',email:'gregorio.navarro@truemategroup.com',active:true},
+      {name:'Paulina Bermudez',email:'paula.bermudez@truemategroup.com',active:true},
+      {name:'Camila',email:'camila@truemategroup.com',active:true},
+      {name:'Fabiola Bermudez',email:'fabiola.bermudez@truemategroup.com',active:true}
+    ],
+    assignments:{carrierReview:'paula.bermudez@truemategroup.com',carrierPayment:'gregorio.navarro@truemategroup.com',deferredCollection:'camila@truemategroup.com'},
+    internalNotifications:true
+  };
+  let currentUser={name:'Usuario',email:''};
+  let baseline='';
+
+  function getCfg(){try{const x=JSON.parse(localStorage.getItem('tmic_w')||'null');if(x&&typeof x==='object')return {...DEFAULT_CFG,...x,assignments:{...DEFAULT_CFG.assignments,...(x.assignments||{})},users:Array.isArray(x.users)?x.users:DEFAULT_CFG.users};}catch(_){} return JSON.parse(JSON.stringify(DEFAULT_CFG));}
+  function setCfg(x){localStorage.setItem('tmic_w',JSON.stringify(x));}
+  function audits(){try{return JSON.parse(localStorage.getItem('tmic_h')||'[]')}catch(_){return[]}}
+  function notices(){try{return JSON.parse(localStorage.getItem('tmic_n')||'[]')}catch(_){return[]}}
+  function saveAudits(x){localStorage.setItem('tmic_h',JSON.stringify(x.slice(-2000)));}
+  function saveNotices(x){localStorage.setItem('tmic_n',JSON.stringify(x.slice(-1000)));}
+  function userName(email){const e=String(email||'').toLowerCase();return getCfg().users.find(u=>String(u.email||'').toLowerCase()===e)?.name||e||'Sin asignar';}
+  async function loadIdentity(){try{const r=await fetch('/cdn-cgi/access/get-identity',{cache:'no-store'});if(!r.ok)return;const x=await r.json();const email=String(x.email||x.user?.email||'').toLowerCase();if(email)currentUser={email,name:userName(email)};}catch(_){}}
+  loadIdentity();
+
+  function addAudit(action,module,ref,detail,before='',after=''){
+    const a=audits();a.push({id:uid(),at:nowIso(),user:currentUser.name,email:currentUser.email,action,module,ref,detail,before,after});saveAudits(a);
+  }
+  window.tmAddAudit=addAudit;
+  window.tmWorkflowConfig=getCfg;
+
+  function addNotice(key,toEmail,title,body,ref,type='info'){
+    if(!toEmail||!getCfg().internalNotifications)return;
+    const n=notices();if(n.some(x=>x.key===key))return;
+    n.push({id:uid(),key,toEmail:String(toEmail).toLowerCase(),toName:userName(toEmail),title,body,ref,type,createdAt:nowIso(),read:false});saveNotices(n);
+  }
+  function dayDiff(date){if(!date)return 999;const d=new Date(date+'T12:00:00'),n=new Date(),t=new Date(n.getFullYear(),n.getMonth(),n.getDate(),12);return Math.round((d-t)/86400000);}
+
+  function generateNotices(){
+    const cfg=getCfg(), rows=Array.isArray(window.S?.r)?S.r:[];
+    rows.forEach(r=>{
+      const dp=+(r.downPayment||r.carrierAmt||0),st=String(r.carrierStatus||'');
+      if(dp>0&&!['Revisado','Pagado','No aplica'].includes(st)) addNotice(`dp-review:${r.id}`,cfg.assignments.carrierReview,'Nuevo Down Payment para revisar',`${r.client||'Cliente'} · ${r.invoice||''} · Down Payment pendiente de completar/revisar.`,r.invoice,'review');
+      if(st==='Revisado') addNotice(`carrier-ready:${r.id}:${r.carrierReviewedAt||'reviewed'}`,cfg.assignments.carrierPayment,'Carrier/PFA listo para pagar',`${r.client||'Cliente'} · ${r.invoice||''} · ${r.carrier||'Carrier'} está Revisado y listo para pago.`,r.invoice,'payment');
+      if(dp>0&&st!=='Pagado'&&r.carrierDue&&dayDiff(r.carrierDue)===1) addNotice(`carrier-due:${r.id}:${r.carrierDue}`,cfg.assignments.carrierPayment,'Pago Carrier vence mañana',`${r.client||'Cliente'} · ${r.invoice||''} · ${r.carrier||'Carrier'} vence mañana ${r.carrierDue}.`,r.invoice,'urgent');
+      if(r.defDate&&(+r.defAmt||0)>0&&dayDiff(r.defDate)===1) addNotice(`deferred-due:${r.id}:${r.defDate}`,cfg.assignments.deferredCollection,'Cobro diferido vence mañana',`${r.client||'Cliente'} · ${r.invoice||''} · cobrar ${typeof money==='function'?money(r.defAmt):'$'+(+r.defAmt).toFixed(2)} mañana ${r.defDate}.`,r.invoice,'deferred');
+    });
+  }
+
+  function ensureStyle(){if($('tm-audit-resp-style'))return;const s=document.createElement('style');s.id='tm-audit-resp-style';s.textContent=`
+    .tm-bell{position:relative;margin-right:8px;background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.28);border-radius:10px;padding:10px 12px;font-weight:900;cursor:pointer}.tm-bell-count{position:absolute;right:-7px;top:-8px;min-width:20px;height:20px;padding:0 5px;border-radius:20px;background:#d94b5d;color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px}.tm-top-actions{display:flex;align-items:center}.tm-setting-card{grid-column:1/-1}.tm-resp-grid{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:10px;align-items:end}.tm-resp-grid label,.tm-user-row label{display:block;font-size:10px;font-weight:900;text-transform:uppercase;color:#6a7f96;margin-bottom:5px}.tm-resp-grid select,.tm-user-row input{width:100%;border:1px solid #d9e3ee;border-radius:9px;padding:9px;background:#fff}.tm-user-row{display:grid;grid-template-columns:1fr 1.3fr auto;gap:8px;align-items:end;padding:8px 0;border-bottom:1px solid #edf1f5}.tm-audit-filters{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:12px 0}.tm-audit-filters input,.tm-audit-filters select{width:100%;border:1px solid #d9e3ee;border-radius:9px;padding:9px;background:#fff}.tm-notice{padding:12px;border:1px solid #dde7f0;border-radius:12px;margin:8px 0;background:#fff}.tm-notice.unread{background:#f4f9ff;border-color:#cfe2f5}.tm-notice small{color:#6f8094}.tm-notice strong{display:block;color:#173f69;margin-bottom:4px}.tm-audit-table td{white-space:normal;vertical-align:top}.tm-audit-table{min-width:900px}@media(max-width:850px){.tm-resp-grid,.tm-user-row,.tm-audit-filters{grid-template-columns:1fr}}
+  `;document.head.appendChild(s);}
+
+  function userOptions(selected){const users=getCfg().users.filter(u=>u.active!==false);return users.map(u=>`<option value="${esc(u.email)}" ${String(u.email).toLowerCase()===String(selected||'').toLowerCase()?'selected':''}>${esc(u.name)} · ${esc(u.email)}</option>`).join('');}
+  function renderSettings(){const analytics=$('settings')?.querySelector('.analytics');if(!analytics)return;let card=analytics.querySelector('.tm-responsibilities-card');if(!card){card=document.createElement('div');card.className='card box tm-setting-card tm-responsibilities-card';analytics.prepend(card);}const cfg=getCfg();card.innerHTML=`<h3>Responsables y notificaciones</h3><div class="sub">Cambia aquí la persona responsable de cada paso. No es necesario modificar el código.</div><div class="tm-resp-grid" style="margin-top:14px"><div><label>Proceso</label><b>Completar / revisar Down Payment</b></div><div><label>Responsable</label><select id="tmRespReview">${userOptions(cfg.assignments.carrierReview)}</select></div><div><label>Aviso</label><span class="badge proc">Nuevo DP</span></div><div><label>Proceso</label><b>Pagar Carrier / MGA / PFA</b></div><div><label>Responsable</label><select id="tmRespPayment">${userOptions(cfg.assignments.carrierPayment)}</select></div><div><label>Aviso</label><span class="badge late">1 día antes</span></div><div><label>Proceso</label><b>Cobrar diferidos</b></div><div><label>Responsable</label><select id="tmRespDeferred">${userOptions(cfg.assignments.deferredCollection)}</select></div><div><label>Aviso</label><span class="badge proc">1 día antes</span></div></div><div style="margin-top:14px;display:flex;justify-content:flex-end"><button class="btn navy" id="tmSaveResp">Guardar responsables</button></div><hr style="border:0;border-top:1px solid #e5ebf2;margin:18px 0"><h3 style="font-size:16px">Usuarios del equipo</h3><div id="tmUsers">${cfg.users.map((u,i)=>`<div class="tm-user-row" data-i="${i}"><div><label>Nombre</label><input class="tm-user-name" value="${esc(u.name)}"></div><div><label>Email</label><input class="tm-user-email" value="${esc(u.email)}"></div><button class="btn soft tm-user-toggle">${u.active===false?'Activar':'Desactivar'}</button></div>`).join('')}</div><div style="margin-top:10px"><button class="btn soft" id="tmAddUser">+ Agregar usuario</button></div>`;
+    card.querySelector('#tmSaveResp').onclick=()=>{const x=getCfg();x.assignments.carrierReview=card.querySelector('#tmRespReview').value;x.assignments.carrierPayment=card.querySelector('#tmRespPayment').value;x.assignments.deferredCollection=card.querySelector('#tmRespDeferred').value;setCfg(x);addAudit('Configuración','Configuración','Responsables','Actualizó responsables de procesos');alert('Responsables guardados.');};
+    card.querySelectorAll('.tm-user-row').forEach(row=>{const i=+row.dataset.i;row.querySelector('.tm-user-name').onchange=e=>{const x=getCfg();x.users[i].name=e.target.value.trim();setCfg(x);addAudit('Configuración','Configuración',x.users[i].email,'Actualizó nombre de usuario');renderSettings();};row.querySelector('.tm-user-email').onchange=e=>{const x=getCfg();const old=x.users[i].email;x.users[i].email=e.target.value.trim().toLowerCase();setCfg(x);addAudit('Configuración','Configuración',x.users[i].email,`Cambió email de ${old}`);renderSettings();};row.querySelector('.tm-user-toggle').onclick=()=>{const x=getCfg();x.users[i].active=x.users[i].active===false;setCfg(x);addAudit('Configuración','Configuración',x.users[i].email,x.users[i].active?'Activó usuario':'Desactivó usuario');renderSettings();};});
+    card.querySelector('#tmAddUser').onclick=()=>{const x=getCfg();x.users.push({name:'Nuevo usuario',email:'',active:true});setCfg(x);renderSettings();};
+  }
+
+  function ensureAuditTab(){if(document.querySelector('.tab[data-v="audit"]'))return;const tabs=document.querySelector('.tabs');if(!tabs)return;const b=document.createElement('button');b.className='tab';b.dataset.v='audit';b.textContent='9 · Auditoría';tabs.appendChild(b);const sec=document.createElement('section');sec.id='audit';sec.className='view';sec.innerHTML='<div class="panel"><div class="head"><div><h2>Registros de auditoría</h2><div class="sub">Seguimiento de actividades del sistema, acciones de usuarios y cambios en los datos.</div></div></div><div class="tm-audit-filters"><input id="tmAuditSearch" placeholder="Buscar cliente, invoice, acción..."><select id="tmAuditUser"><option value="">Todos los usuarios</option></select><select id="tmAuditModule"><option value="">Todos los módulos</option></select></div><div class="tablewrap"><table class="tm-audit-table"><thead><tr><th>Fecha / hora</th><th>Usuario</th><th>Módulo</th><th>Acción</th><th>Referencia</th><th>Detalle</th></tr></thead><tbody id="tmAuditBody"></tbody></table></div></div>';document.querySelector('.footer')?.before(sec);b.onclick=()=>{if(typeof go==='function')go('audit');renderAudit();};sec.querySelectorAll('input,select').forEach(x=>x.addEventListener('input',renderAudit));}
+  function fmtStamp(v){const d=new Date(v);return Number.isNaN(d.getTime())?'—':d.toLocaleString('en-US',{month:'2-digit',day:'2-digit',year:'numeric',hour:'numeric',minute:'2-digit'});}
+  function renderAudit(){const body=$('tmAuditBody');if(!body)return;let a=audits().slice().reverse();const q=String($('tmAuditSearch')?.value||'').toLowerCase(),u=$('tmAuditUser')?.value||'',m=$('tmAuditModule')?.value||'';const us=[...new Set(a.map(x=>x.user).filter(Boolean))].sort(),ms=[...new Set(a.map(x=>x.module).filter(Boolean))].sort();if($('tmAuditUser')){$('tmAuditUser').innerHTML='<option value="">Todos los usuarios</option>'+us.map(x=>`<option ${x===u?'selected':''}>${esc(x)}</option>`).join('');}if($('tmAuditModule')){$('tmAuditModule').innerHTML='<option value="">Todos los módulos</option>'+ms.map(x=>`<option ${x===m?'selected':''}>${esc(x)}</option>`).join('');}if(q)a=a.filter(x=>JSON.stringify(x).toLowerCase().includes(q));if(u)a=a.filter(x=>x.user===u);if(m)a=a.filter(x=>x.module===m);body.innerHTML=a.slice(0,500).map(x=>`<tr><td>${esc(fmtStamp(x.at))}</td><td><b>${esc(x.user||'—')}</b><div class="sub">${esc(x.email||'')}</div></td><td>${esc(x.module||'')}</td><td>${esc(x.action||'')}</td><td>${esc(x.ref||'')}</td><td>${esc(x.detail||'')}</td></tr>`).join('')||'<tr><td colspan="6">Aún no hay eventos de auditoría.</td></tr>';}
+
+  function bell(){let top=document.querySelector('.top');if(!top)return;let actions=top.querySelector('.tm-top-actions');if(!actions){actions=document.createElement('div');actions.className='tm-top-actions';const add=$('addTop');if(add){top.insertBefore(actions,add);actions.appendChild(add);}}let b=$('tmBell');if(!b){b=document.createElement('button');b.id='tmBell';b.className='tm-bell';b.innerHTML='🔔 <span>Notificaciones</span><span class="tm-bell-count" id="tmBellCount">0</span>';actions.insertBefore(b,actions.firstChild);b.onclick=openNotices;}const mine=notices().filter(n=>String(n.toEmail||'').toLowerCase()===String(currentUser.email||'').toLowerCase()&&!n.read);const c=$('tmBellCount');if(c){c.textContent=mine.length;c.style.display=mine.length?'flex':'none';}}
+  function openNotices(){const mine=notices().filter(n=>String(n.toEmail||'').toLowerCase()===String(currentUser.email||'').toLowerCase()).slice().reverse();document.querySelector('.tm-notice-overlay')?.remove();const o=document.createElement('div');o.className='tm-overlay tm-notice-overlay';o.innerHTML=`<div class="tm-pop"><div class="tm-pop-h"><h3>Notificaciones · ${esc(currentUser.name)}</h3><button class="tm-close">×</button></div><div class="tm-pop-b">${mine.length?mine.map(n=>`<div class="tm-notice ${n.read?'':'unread'}" data-id="${n.id}"><strong>${esc(n.title)}</strong><div>${esc(n.body)}</div><small>${esc(fmtStamp(n.createdAt))}${n.ref?' · '+esc(n.ref):''}</small></div>`).join(''):'<div class="sub">No tienes notificaciones.</div>'}</div><div class="tm-pop-f"><button class="btn soft" id="tmMarkAll">Marcar todas como leídas</button></div></div>`;o.querySelector('.tm-close').onclick=()=>o.remove();o.onclick=e=>{if(e.target===o)o.remove()};o.querySelector('#tmMarkAll').onclick=()=>{const all=notices();all.forEach(n=>{if(String(n.toEmail||'').toLowerCase()===String(currentUser.email||'').toLowerCase())n.read=true;});saveNotices(all);o.remove();bell();};o.querySelectorAll('.tm-notice').forEach(el=>el.onclick=()=>{const all=notices(),n=all.find(x=>x.id===el.dataset.id);if(n)n.read=true;saveNotices(all);el.classList.remove('unread');bell();});document.body.appendChild(o);}
+
+  function snapshotRows(){try{return JSON.stringify((S.r||[]).map(r=>r))}catch(_){return'[]'}}
+  function detectAudit(){const cur=snapshotRows();if(!baseline){baseline=cur;return;}if(cur===baseline)return;let old=[],now=[];try{old=JSON.parse(baseline);now=JSON.parse(cur);}catch(_){baseline=cur;return;}const om=new Map(old.map(x=>[String(x.id),x])),nm=new Map(now.map(x=>[String(x.id),x]));now.forEach(r=>{const p=om.get(String(r.id));if(!p)addAudit('Creó','Ingresos',r.invoice||r.id,`Registró ingreso de ${r.client||'cliente'}${(+r.downPayment||+r.carrierAmt||0)>0?' con Down Payment':''}`);else if(JSON.stringify(p)!==JSON.stringify(r)){let mod='Ingresos',detail='Actualizó información del ingreso';if(p.carrierStatus!==r.carrierStatus||p.carrier!==r.carrier||p.carrierDue!==r.carrierDue||p.note!==r.note){mod='Carrier / PFA';detail=`Actualizó Carrier/PFA${p.carrierStatus!==r.carrierStatus?` · estado ${p.carrierStatus||'—'} → ${r.carrierStatus||'—'}`:''}`;}else if(p.defDate!==r.defDate||p.defAmt!==r.defAmt||p.pending!==r.pending){mod='Diferidos';detail='Actualizó información de cobro diferido';}addAudit('Actualizó',mod,r.invoice||r.id,detail);}});old.forEach(r=>{if(!nm.has(String(r.id)))addAudit('Eliminó','Ingresos',r.invoice||r.id,`Eliminó ingreso de ${r.client||'cliente'}`);});baseline=cur;}
+
+  function apply(){ensureStyle();ensureAuditTab();renderSettings();generateNotices();bell();renderAudit();}
+  const oldRender=window.render;if(typeof oldRender==='function')window.render=function(){oldRender();setTimeout(apply,300);};
+  baseline=snapshotRows();
+  setInterval(()=>{detectAudit();generateNotices();bell();},1500);
+  setTimeout(apply,700);
+})();

@@ -1,0 +1,13 @@
+(() => {
+  if(window.__tmCarrierOverdueFixLoaded)return;window.__tmCarrierOverdueFixLoaded=true;
+  const $=id=>document.getElementById(id);
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fmt=v=>typeof money==='function'?money(v):new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(+v||0);
+  const daysTo=d=>{if(!d)return 999;const end=new Date(d+'T12:00:00'),now=new Date();now.setHours(12,0,0,0);return Math.ceil((end-now)/864e5)};
+  function overdueRows(){return (S.r||[]).filter(r=>{const amt=+(r.carrierAmt||r.downPayment||0);const st=String(r.carrierStatus||'').toLowerCase();return amt>0&&r.carrierDue&&daysTo(r.carrierDue)<0&&st!=='pagado';});}
+  function reconcile(){let changed=false;(S.r||[]).forEach(r=>{const amt=+(r.carrierAmt||r.downPayment||0);if(amt>0&&r.carrierDue&&String(r.carrierStatus||'').toLowerCase()==='no aplica'){r.carrierStatus='Pendiente';r.carrierNeedsCompletion=!(r.carrier&&r.carrierDue);changed=true;}});if(changed){try{store()}catch(_){}}}
+  function popup(){document.querySelector('.tm-overlay')?.remove();const rows=overdueRows();const o=document.createElement('div');o.className='tm-overlay';o.innerHTML=`<div class="tm-pop"><div class="tm-pop-h"><h3>Carrier/PFA vencidos</h3><button class="tm-close" type="button">×</button></div><div class="tm-pop-b"><div class="tablewrap"><table><thead><tr><th>Cliente</th><th>Invoice</th><th>Carrier/PFA</th><th>Fecha límite</th><th>Monto</th><th>Estado</th><th>Acción</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.client||'')}</td><td>${esc(r.invoice||'')}</td><td>${esc(r.carrier||'Pendiente de completar')}</td><td>${esc(r.carrierDue||'')}</td><td><b>${fmt(r.carrierAmt||r.downPayment)}</b></td><td><span class="badge late">Vencido</span></td><td><button class="btn soft" onclick="tmEditCarrierObligation('${r.id}')">${r.carrier?'Editar':'Completar'}</button></td></tr>`).join('')||'<tr><td colspan="7">No hay registros.</td></tr>'}</tbody></table></div></div></div>`;o.querySelector('.tm-close').onclick=()=>o.remove();o.addEventListener('click',e=>{if(e.target===o)o.remove()});document.body.appendChild(o);}
+  function apply(){try{reconcile();const n=overdueRows().length;const count=$('lateCarrier');if(count)count.textContent=n;const card=count?.closest('.alert');if(card){card.onclick=popup;card.title='Ver Carrier/PFA vencidos';card.style.cursor='pointer';}}catch(e){console.error('carrier overdue fix',e)}}
+  const old=window.render;if(typeof old==='function')window.render=function(){old();setTimeout(apply,180)};
+  setTimeout(apply,500);setInterval(apply,4000);
+})();
