@@ -13,12 +13,8 @@
       savedMonth=localStorage.getItem(MONTH_KEY)||'';
       savedYear=localStorage.getItem(YEAR_KEY)||'';
     }catch(_){ }
-
-    // If the user already chose a period, preserve it after reload/refresh.
     if(savedMonth && [...mo.options].some(o=>o.value===savedMonth)) mo.value=savedMonth;
     if(savedYear && [...yr.options].some(o=>o.value===savedYear||o.textContent===savedYear)) yr.value=savedYear;
-
-    // Only default to the real current month when there is no saved selection.
     if(!savedMonth || !savedYear){
       const now=new Date();
       const month=String(now.getMonth()+1).padStart(2,'0');
@@ -52,11 +48,9 @@
       const old=b.textContent;
       b.textContent='↻ Actualizando…';
       try{
-        // Save the period visible right now before reloading the app.
         const mo=document.getElementById('mo'),yr=document.getElementById('yr');
         if(mo?.value) localStorage.setItem(MONTH_KEY,mo.value);
         if(yr?.value) localStorage.setItem(YEAR_KEY,yr.value);
-
         const r=await fetch('/api/state',{cache:'no-store'});
         if(r.ok){
           const x=await r.json();
@@ -73,28 +67,41 @@
     tabs.appendChild(b);
   }
 
+  function addOwnerLink(){
+    const tabs=document.querySelector('.tabs');
+    if(!tabs||document.getElementById('tmOwnerAdminLink'))return;
+    const a=document.createElement('a');
+    a.id='tmOwnerAdminLink';
+    a.href='/admin.html';
+    a.target='_blank';
+    a.rel='noopener';
+    a.className='tab';
+    a.textContent='Owner · Administración ↗';
+    a.style.textDecoration='none';
+    const refresh=document.getElementById('tmManualRefresh');
+    if(refresh)tabs.insertBefore(a,refresh);else tabs.appendChild(a);
+  }
+
+  async function isOwner(){
+    try{
+      const r=await fetch('/cdn-cgi/access/get-identity',{cache:'no-store'});
+      if(r.ok){
+        const x=await r.json();
+        const email=String(x.email||x.user?.email||'').trim().toLowerCase();
+        if(email===OWNER)return true;
+      }
+    }catch(_){ }
+    try{
+      const r=await fetch('/api/admin',{cache:'no-store'});
+      if(r.ok){const x=await r.json();return x?.owner===true;}
+    }catch(_){ }
+    return false;
+  }
+
   async function init(){
     ensureInitialPeriod();
     addRefreshButton();
-    try{
-      const r=await fetch('/cdn-cgi/access/get-identity',{cache:'no-store'});
-      if(!r.ok)return;
-      const x=await r.json();
-      const email=String(x.email||x.user?.email||'').trim().toLowerCase();
-      if(email!==OWNER)return;
-      const tabs=document.querySelector('.tabs');
-      if(!tabs||document.getElementById('tmOwnerAdminLink'))return;
-      const a=document.createElement('a');
-      a.id='tmOwnerAdminLink';
-      a.href='/admin.html';
-      a.target='_blank';
-      a.rel='noopener';
-      a.className='tab';
-      a.textContent='Owner · Administración ↗';
-      a.style.textDecoration='none';
-      const refresh=document.getElementById('tmManualRefresh');
-      if(refresh)tabs.insertBefore(a,refresh);else tabs.appendChild(a);
-    }catch(_){ }
+    if(await isOwner())addOwnerLink();
   }
   setTimeout(init,500);
 })();
