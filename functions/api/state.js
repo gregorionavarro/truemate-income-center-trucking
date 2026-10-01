@@ -1,32 +1,4 @@
-const DEFAULT_STATE = {
-  r: [],
-  p: ["Greg", "Carlos", "Paulina", "Fabiola"],
-  c: ["Imperial PFS", "Great West", "RPS"],
-  t: [],
-  a: [],
-  l: {
-    "RPS": "https://rpsins.epaypolicy.com/",
-    "Guardian": "https://guardian-ins.epaypolicy.com/",
-    "Rocklake": "https://rocklakeig.epaypolicy.com/",
-    "Burns and Wilcox": "https://burnsandwilcox.epaypolicy.com/"
-  },
-  w: {
-    users: [
-      { name: "Gregorio Navarro", email: "gregorio.navarro@truemategroup.com", active: true },
-      { name: "Paulina Bermudez", email: "paula.bermudez@truemategroup.com", active: true },
-      { name: "Camila", email: "camila@truemategroup.com", active: true },
-      { name: "Fabiola Bermudez", email: "fabiola.bermudez@truemategroup.com", active: true }
-    ],
-    assignments: {
-      carrierReview: "paula.bermudez@truemategroup.com",
-      carrierPayment: "gregorio.navarro@truemategroup.com",
-      deferredCollection: "camila@truemategroup.com"
-    },
-    internalNotifications: true
-  },
-  h: [],
-  n: []
-};
+import { DEFAULT_STATE } from './default-state.js';
 
 async function ensureTable(DB) {
   await DB.prepare(`
