@@ -53,16 +53,23 @@
     ensureStyle();
     const recent=recentRows(),review=reviewRows(),pay=paymentRows();
     const sig=JSON.stringify({m:monthKey(),recent:recent.map(r=>[r.id,r.date,r.invoice,r.gross,r.agencyFee,r.net,r.depStatus,r.carrierStatus,r.fundsStatus,amountOf(r)]),review:review.map(r=>[r.id,r.invoice,amountOf(r),r.carrierStatus,r.fundsStatus]),pay:pay.map(r=>[r.id,r.invoice,amountOf(r),r.carrier,r.carrierDue,r.carrierStatus,r.fundsStatus])});
-    if(!force&&sig===lastSig&&grid.dataset.tmWorkflowStable==='1')return;
+    const stableDom=grid.dataset.tmWorkflowStable==='1'&&document.getElementById('tmRecentStableCard')&&document.getElementById('tmReviewQueueCard')&&document.getElementById('tmCarrierPaymentCard');
+    if(!force&&sig===lastSig&&stableDom)return;
+    const scrollY=window.scrollY;
     lastSig=sig;rendering=true;
     grid.innerHTML=`
       <div class="card box" id="tmRecentStableCard"><div class="head"><div><h3>Movimientos recientes</h3><div class="sub" style="display:block!important">Todos los ingresos del mes seleccionado, tengan o no Down Payment.</div></div><button class="btn soft" type="button" onclick="go('income')">Ver todos →</button></div><div class="tablewrap"><table><thead><tr><th>Fecha pago</th><th>Cliente</th><th>Invoice</th><th>Producer</th><th>Método</th><th>Pagó cliente</th><th>Fee</th><th>Neto</th><th>Depósito</th><th>Carrier / PFA</th><th>Acción</th></tr></thead><tbody>${recent.length?recent.slice(0,8).map(r=>`<tr><td>${fmtDate(r.date)}</td><td><b>${esc(companyName(r))}</b></td><td>${esc(r.invoice||'')}</td><td>${esc(r.producer||'')}</td><td>${esc(r.method||'')}</td><td>${fmt(r.gross)}</td><td>${fmt(r.agencyFee)}</td><td><b>${fmt(r.net)}</b></td><td>${depBadge(r)}</td><td>${workflowBadge(r)}</td><td><div class="tm-actions"><button class="btn soft" onclick="openModal('${esc(r.id)}')">Editar</button><button class="btn danger tm-delete" onclick="deleteIncome('${esc(r.id)}')">Eliminar</button></div></td></tr>`).join(''):'<tr><td colspan="11" style="color:#6d7d92">Sin movimientos en este mes.</td></tr>'}</tbody></table></div></div>
       <div class="card box" id="tmReviewQueueCard"><div class="head"><div><h3>Invoices pendientes de revisión</h3><div class="sub" style="display:block!important">Ingresos con Down Payment cuyos fondos ya fueron confirmados y todavía deben ser revisados por Operaciones.</div></div><button class="btn soft" type="button" onclick="go('carrier')">Ver Carrier / PFA →</button></div><div class="tablewrap"><table><thead><tr><th>Fecha</th><th>Cliente</th><th>Invoice</th><th>Down Payment</th><th>Estado</th><th>Acción</th></tr></thead><tbody>${review.length?review.slice(0,10).map(r=>`<tr><td>${fmtDate(r.date)}</td><td><b>${esc(companyName(r))}</b></td><td>${esc(r.invoice||'')}</td><td><b>${fmt(amountOf(r))}</b></td><td><span class="badge proc">Pendiente de revisión</span></td><td><button class="btn soft" onclick="tmOpenWorkflowCarrier('${esc(r.id)}')">Revisar</button></td></tr>`).join(''):'<tr><td colspan="6" style="color:#6d7d92">No hay invoices pendientes de revisión.</td></tr>'}</tbody></table></div></div>
       <div class="card box" id="tmCarrierPaymentCard"><div class="head"><div><h3>Próximos pagos a Carrier / MGA / PFA</h3><div class="sub" style="display:block!important">Solo casos con fondos confirmados, ya revisados y listos para pago. Permanecen aquí hasta registrar el pago.</div></div><button class="btn soft" type="button" onclick="go('carrier')">Ver todos los pagos →</button></div><div class="tablewrap"><table><thead><tr><th>Carrier / MGA / PFA</th><th>Cliente</th><th>Invoice</th><th>Monto a pagar</th><th>Fecha límite</th><th>Estado</th><th>Acción</th></tr></thead><tbody>${pay.length?pay.slice(0,10).map(r=>{const [txt,cls]=dayLabel(r.carrierDue);return `<tr><td><b>${esc(r.carrier||'—')}</b></td><td><b>${esc(companyName(r))}</b></td><td>${esc(r.invoice||'')}</td><td><b>${fmt(amountOf(r))}</b></td><td>${fmtDate(r.carrierDue)}</td><td><span class="tm-days ${cls}">${esc(txt)}</span></td><td><button class="tm-open-pay" onclick="tmOpenWorkflowCarrier('${esc(r.id)}')">Abrir</button></td></tr>`}).join(''):'<tr><td colspan="7" style="color:#6d7d92">No hay pagos revisados pendientes.</td></tr>'}</tbody></table></div></div>`;
-    grid.dataset.tmWorkflowStable='1';requestAnimationFrame(()=>{rendering=false;setTimeout(()=>window.tmRefreshFundsConfirmation?.(),60)});
+    grid.dataset.tmWorkflowStable='1';
+    requestAnimationFrame(()=>{
+      rendering=false;
+      window.scrollTo(0,scrollY);
+      setTimeout(()=>{window.tmRefreshFundsConfirmation?.();window.scrollTo(0,scrollY);},60);
+    });
   }
 
-  function burst(){[0,40,120,260,500,900].forEach(ms=>setTimeout(()=>render(true),ms));}
+  function burst(){[0,60,180].forEach(ms=>setTimeout(()=>render(false),ms));}
   window.tmRefreshSummaryWorkflow=burst;
   const prior=window.render;if(typeof prior==='function')window.render=function(){const out=prior.apply(this,arguments);burst();return out;};
   document.getElementById('mo')?.addEventListener('change',burst);document.getElementById('yr')?.addEventListener('change',burst);
