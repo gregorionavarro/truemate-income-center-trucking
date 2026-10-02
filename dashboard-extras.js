@@ -55,18 +55,50 @@
     if(!v)return 'Sin registro';const d=new Date(v);if(Number.isNaN(d.getTime()))return v;
     return d.toLocaleString('es-US',{month:'short',day:'2-digit',year:'numeric',hour:'numeric',minute:'2-digit'});
   }
+
+  function restoreSettingsCore(){
+    const panel=document.querySelector('#settings .panel');if(!panel)return;
+    let analytics=panel.querySelector('.analytics');
+    if(!analytics){
+      analytics=document.createElement('div');analytics.className='analytics';
+      const activity=panel.querySelector('.tm-team-activity');
+      if(activity)panel.insertBefore(analytics,activity);else panel.appendChild(analytics);
+    }
+    if(!document.getElementById('prodChips')){
+      const card=document.createElement('div');card.className='card box';
+      card.innerHTML='<h3>Producers</h3><div class="sub">Personas que registran o generan fees.</div><div id="prodChips" class="chips" style="margin-top:10px"></div><div style="margin-top:12px"><input id="newProd" class="month" placeholder="Nombre del Producer"> <button class="btn navy" type="button" id="tmAddProdRestore">Agregar Producer</button></div>';
+      analytics.insertBefore(card,analytics.firstChild);
+      card.querySelector('#tmAddProdRestore').onclick=()=>{try{if(typeof addProd==='function')addProd();}catch(e){console.error(e)}};
+    }
+    if(!document.getElementById('carChips')){
+      const card=document.createElement('div');card.className='card box';
+      card.innerHTML='<h3>Carrier / MGA / PFA</h3><div class="sub">Catálogo utilizado al registrar obligaciones y próximos pagos.</div><div id="carChips" class="chips" style="margin-top:10px"></div><div style="margin-top:12px"><input id="newCar" class="month" placeholder="Nombre Carrier / MGA / PFA"> <button class="btn navy" type="button" id="tmAddCarRestore">Agregar Carrier</button></div>';
+      analytics.appendChild(card);
+      card.querySelector('#tmAddCarRestore').onclick=()=>{try{if(typeof addCar==='function')addCar();}catch(e){console.error(e)}};
+    }
+    try{
+      if(typeof S!=='undefined'){
+        const p=document.getElementById('prodChips'),c=document.getElementById('carChips');
+        if(p)p.innerHTML=(S.p||[]).map(x=>`<span class="chip">${esc(x)}<span class="x" onclick="rmProd('${String(x).replace(/'/g,"\\'")}')">×</span></span>`).join('');
+        if(c)c.innerHTML=(S.c||[]).map(x=>`<span class="chip">${esc(x)}<span class="x" onclick="rmCar('${String(x).replace(/'/g,"\\'")}')">×</span></span>`).join('');
+      }
+    }catch(e){console.error('No se pudo restaurar catálogos',e)}
+    setTimeout(()=>{try{window.tmRefreshPaymentPortals?.()}catch(_){}},60);
+  }
+
   function teamActivity(){
     const view=document.getElementById('settings');const panel=view?.querySelector('.panel');if(!panel)return;
+    restoreSettingsCore();
     let box=panel.querySelector('.tm-team-activity');
     if(!box){box=document.createElement('div');box.className='card box tm-team-activity';panel.appendChild(box)}
     const rows=readActivity().slice().sort((a,b)=>String(b.lastAccess||'').localeCompare(String(a.lastAccess||'')));
     box.innerHTML=`<h3>Último acceso del equipo</h3><div class="sub">Muestra la última vez que cada usuario autorizado abrió el Income Center.</div><div class="tm-team-grid">${rows.length?rows.map(x=>`<div class="tm-team-person"><b>${esc(x.name||x.email||'Usuario')}</b><span>${esc(x.email||'')}</span><strong>Último acceso: ${esc(fmtAccess(x.lastAccess))}</strong></div>`).join(''):'<div class="sub">Los accesos comenzarán a registrarse desde esta actualización.</div>'}</div>`;
   }
 
-  function apply(){try{style();feeBadge();operationalCounters();teamActivity()}catch(e){console.error('TrueMate dashboard extras',e)}}
+  function apply(){try{style();feeBadge();operationalCounters();restoreSettingsCore();teamActivity()}catch(e){console.error('TrueMate dashboard extras',e)}}
   const prior=window.render;if(typeof prior==='function')window.render=function(){prior();setTimeout(apply,180)};
   document.getElementById('mo')?.addEventListener('change',()=>setTimeout(()=>{feeBadge();operationalCounters()},120));
   document.getElementById('yr')?.addEventListener('change',()=>setTimeout(()=>{feeBadge();operationalCounters()},120));
-  setInterval(()=>{feeBadge();operationalCounters();teamActivity()},5000);
+  setInterval(()=>{feeBadge();operationalCounters();restoreSettingsCore();teamActivity()},5000);
   setTimeout(apply,250);
 })();
