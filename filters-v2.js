@@ -7,9 +7,10 @@
   const fmt = v => typeof money==='function'?money(v):new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(+v||0);
   const badge = r => String(r.depStatus||'').toLowerCase()==='depositado' ? '<span class="badge ok">Depositado</span>' : '<span class="badge proc">En proceso</span>';
   const fmtDate = v => { if(!v) return '—'; const d=new Date(v+'T12:00:00'); return Number.isNaN(d.getTime())?esc(v):d.toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'numeric'}); };
+  const currentPeriod=()=>`${$('yr')?.value||new Date().getFullYear()}-${$('mo')?.value||String(new Date().getMonth()+1).padStart(2,'0')}`;
 
   let recentSort='desc';
-  const incomeFilter={month:'all',producer:'all',method:'all',sort:'desc',search:''};
+  const incomeFilter={month:'',producer:'all',method:'all',sort:'desc',search:''};
 
   function addStyle(){
     if($('tm-filters-v2-style')) return;
@@ -55,6 +56,7 @@
   function ensureIncomeFilters(){
     const body=$('incomeBody'); if(!body) return;
     const panel=body.closest('.panel'); const wrap=body.closest('.tablewrap'); if(!panel||!wrap) return;
+    if(!incomeFilter.month) incomeFilter.month=currentPeriod();
     let f=panel.querySelector('.tm-income-filters');
     if(!f){
       f=document.createElement('div'); f.className='tm-income-filters';
@@ -70,9 +72,10 @@
       f.querySelector('#tmIncomeSearch').oninput=e=>{incomeFilter.search=e.target.value;renderIncomeFiltered();};
     }
 
-    const months=[...new Set((S.r||[]).map(r=>(r.date||'').slice(0,7)).filter(Boolean))].sort().reverse();
+    const selected=currentPeriod();
+    const months=[...new Set([selected,...(S.r||[]).map(r=>(r.date||'').slice(0,7)).filter(Boolean)])].sort().reverse();
     const m=f.querySelector('#tmIncomeMonth'), p=f.querySelector('#tmIncomeProducer'), me=f.querySelector('#tmIncomeMethod'), so=f.querySelector('#tmIncomeSort'), se=f.querySelector('#tmIncomeSearch');
-    m.innerHTML='<option value="all">Todos</option>'+months.map(x=>`<option value="${x}">${x}</option>`).join(''); m.value=months.includes(incomeFilter.month)?incomeFilter.month:'all'; incomeFilter.month=m.value;
+    m.innerHTML='<option value="all">Todos</option>'+months.map(x=>`<option value="${x}">${x}</option>`).join(''); m.value=months.includes(incomeFilter.month)?incomeFilter.month:selected; incomeFilter.month=m.value;
     p.innerHTML='<option value="all">Todos</option>'+(S.p||[]).map(x=>`<option>${esc(x)}</option>`).join(''); p.value=(S.p||[]).includes(incomeFilter.producer)?incomeFilter.producer:'all'; incomeFilter.producer=p.value;
     me.value=incomeFilter.method; so.value=incomeFilter.sort; if(se&&se.value!==incomeFilter.search)se.value=incomeFilter.search;
   }
@@ -89,8 +92,12 @@
     if(incomeFilter.producer!=='all') rows=rows.filter(r=>r.producer===incomeFilter.producer);
     if(incomeFilter.method!=='all') rows=rows.filter(r=>r.method===incomeFilter.method);
     rows.sort((a,b)=>incomeFilter.sort==='asc'?String(a.date||'').localeCompare(String(b.date||'')):String(b.date||'').localeCompare(String(a.date||'')));
-    body.innerHTML=rows.map(r=>`<tr><td>${esc(r.date||'')}</td><td>${esc(r.client||'')}</td><td>${esc(r.company||'')}</td><td><button class="tm-link" onclick="tmInvoiceDetail('${String(r.invoice||'').replace(/'/g,"\\'")}')">${esc(r.invoice||'')}</button></td><td>${esc(r.producer||'')}</td><td>${esc(r.method||'')}</td><td>${fmt(r.gross)}</td><td>${fmt(r.agencyFee)}</td><td>${fmt(r.net)}</td><td>${badge(r)}</td><td><button class="btn soft" onclick="openModal('${r.id}')">Editar</button><button class="btn danger" onclick="deleteIncome('${r.id}')">Eliminar</button></td></tr>`).join('')||'<tr><td colspan="11">Sin ingresos para estos filtros.</td></tr>';
+    body.innerHTML=rows.map(r=>`<tr><td>${esc(r.date||'')}</td><td>${esc(r.client||'')}</td><td>${esc(r.company||'')}</td><td><button class="tm-link" onclick="tmInvoiceDetail('${String(r.invoice||'').replace(/'/g,"\\'")}')">${esc(r.invoice||'')}</button></td><td>${esc(r.producer||'')}</td><td>${esc(r.method||'')}</td><td>${fmt(r.gross)}</td><td>${fmt(r.agencyFee)}</td><td>${fmt(r.net)}</td><td>${badge(r)}</td><td><button class="btn soft" onclick="openModal('${r.id}')">Editar</button><button class="btn danger" onclick="deleteIncome('${r.id}')">Eliminar</button></td></tr>`).join('')||'<tr><td colspan="11">Sin ingresos para el mes seleccionado.</td></tr>';
   }
+
+  function syncSelectedMonth(){incomeFilter.month=currentPeriod();renderIncomeFiltered();}
+  $('mo')?.addEventListener('change',()=>setTimeout(syncSelectedMonth,0));
+  $('yr')?.addEventListener('change',()=>setTimeout(syncSelectedMonth,0));
 
   function apply(){ addStyle(); renderRecentClean(); renderIncomeFiltered(); }
   const originalRender=window.render;
