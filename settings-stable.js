@@ -61,7 +61,8 @@
     const links=obj('tmic_l',LINK_DEFAULTS);seeded=setObj('tmic_l',links)||seeded;
     if(seeded)setTimeout(signal,0);
     let access=[];try{access=JSON.parse(localStorage.getItem('tmic_a')||'[]')}catch(_){} if(!Array.isArray(access))access=[];
-    panel.innerHTML=`<h2>Configuración</h2><div class="tm-settings-grid"><div class="card tm-settings-card"><h3>Producers</h3><div class="sub">Personas que registran o generan fees.</div><div class="tm-stable-chips tm-prod-chips"></div><div class="tm-settings-add"><input class="tm-new-prod" placeholder="Nombre del Producer"><button class="btn navy tm-add-prod" type="button">Agregar Producer</button></div></div><div class="card tm-settings-card"><h3>Carrier / MGA / PFA</h3><div class="sub">Catálogo utilizado al registrar obligaciones y próximos pagos.</div><div class="tm-stable-chips tm-car-chips"></div><div class="tm-settings-add"><input class="tm-new-car" placeholder="Nombre Carrier / MGA / PFA"><button class="btn navy tm-add-car" type="button">Agregar Carrier</button></div></div><div class="card tm-settings-card tm-portals-card"></div><div class="card tm-settings-card tm-access-card"><h3>Último acceso del equipo</h3><div class="sub">Muestra la última vez que cada usuario autorizado abrió el Income Center.</div><div class="tm-access-grid">${access.length?access.map(a=>`<div class="tm-access-item"><b>${esc(a.name||a.email||'Usuario')}</b><small>${esc(a.email||'')}</small><small><strong>Último acceso:</strong> ${esc(fmtAccess(a.lastAccess))}</small></div>`).join(''):'<div class="tm-note-stable">Todavía no hay registros de acceso.</div>'}</div></div></div>`;
+    panel.dataset.tmStableSettings='1';
+    panel.innerHTML=`<h2>Configuración</h2><div class="tm-settings-grid"><div class="card tm-settings-card"><h3>Producers</h3><div class="sub">Personas que registran o generan fees.</div><div id="prodChips" class="tm-stable-chips tm-prod-chips"></div><div class="tm-settings-add"><input id="newProd" class="tm-new-prod" placeholder="Nombre del Producer"><button class="btn navy tm-add-prod" type="button">Agregar Producer</button></div></div><div class="card tm-settings-card"><h3>Carrier / MGA / PFA</h3><div class="sub">Catálogo utilizado al registrar obligaciones y próximos pagos.</div><div id="carChips" class="tm-stable-chips tm-car-chips"></div><div class="tm-settings-add"><input id="newCar" class="tm-new-car" placeholder="Nombre Carrier / MGA / PFA"><button class="btn navy tm-add-car" type="button">Agregar Carrier</button></div></div><div class="card tm-settings-card tm-portals-card"></div><div class="card tm-settings-card tm-access-card"><h3>Último acceso del equipo</h3><div class="sub">Muestra la última vez que cada usuario autorizado abrió el Income Center.</div><div class="tm-access-grid">${access.length?access.map(a=>`<div class="tm-access-item"><b>${esc(a.name||a.email||'Usuario')}</b><small>${esc(a.email||'')}</small><small><strong>Último acceso:</strong> ${esc(fmtAccess(a.lastAccess))}</small></div>`).join(''):'<div class="tm-note-stable">Todavía no hay registros de acceso.</div>'}</div></div></div>`;
     const pc=panel.querySelector('.tm-prod-chips'),cc=panel.querySelector('.tm-car-chips');
     pc.innerHTML=producers.map(p=>`<span class="tm-stable-chip">${esc(p)}<button type="button" data-v="${esc(p)}">×</button></span>`).join('');
     cc.innerHTML=carriers.map(c=>`<span class="tm-stable-chip">${esc(c)}<button type="button" data-v="${esc(c)}">×</button></span>`).join('');
@@ -71,9 +72,13 @@
     panel.querySelector('.tm-add-car').onclick=()=>{const v=panel.querySelector('.tm-new-car').value.trim();if(!v)return;const x=arr('tmic_c',[]);if(!x.some(c=>c.toLowerCase()===v.toLowerCase()))x.push(v);if(setArr('tmic_c',x))signal();render();};
     renderPortals(panel.querySelector('.tm-portals-card'),carriers);
   }
-  window.tmRefreshStableSettings=render;
-  document.addEventListener('click',e=>{const b=e.target.closest('[data-v="settings"]');if(b)setTimeout(render,50)},true);
-  window.addEventListener('tm-state-updated',()=>setTimeout(()=>{if(document.getElementById('settings')?.classList.contains('on'))render()},100));
-  setInterval(()=>{if(document.getElementById('settings')?.classList.contains('on'))render()},900);
+  function formFocused(){
+    const a=document.activeElement,p=document.querySelector('#settings .panel');
+    return !!(a&&p&&p.contains(a)&&/^(INPUT|SELECT|TEXTAREA)$/i.test(a.tagName));
+  }
+  function safeRender(){if(!formFocused())render();}
+  window.tmRefreshStableSettings=safeRender;
+  document.addEventListener('click',e=>{const b=e.target.closest('[data-v="settings"]');if(b)setTimeout(safeRender,50)},true);
+  window.addEventListener('tm-state-updated',()=>setTimeout(()=>{if(document.getElementById('settings')?.classList.contains('on'))safeRender()},120));
   setTimeout(render,550);
 })();
