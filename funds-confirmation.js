@@ -3,6 +3,7 @@
   window.__tmFundsConfirmationLoaded = true;
 
   const OWNER_EMAIL='gregorio.navarro@truemategroup.com';
+  const FEATURE_START='2026-10-01';
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const fmt=v=>typeof money==='function'?money(v):new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(+v||0);
   const fmtDate=v=>{if(!v)return'—';const d=new Date(v+'T12:00:00');return Number.isNaN(d.getTime())?esc(v):d.toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'numeric'})};
@@ -17,11 +18,32 @@
     if(currentUser.email===OWNER_EMAIL){currentUser.isOwner=true;currentUser.name='Gregorio Navarro';}
     else if(currentUser.email){const local=currentUser.email.split('@')[0].replace(/[._-]+/g,' ');currentUser.name=local.replace(/\b\w/g,c=>c.toUpperCase());}
   }
-  loadIdentity();
 
-  function getRows(){try{return (typeof S!=='undefined'&&Array.isArray(S.r))?S.r:[]}catch(_){return[]}}
+  function getRows(){
+    try{return (typeof S!=='undefined'&&Array.isArray(S.r))?S.r:[]}catch(_){return[]}
+  }
   function pendingRows(){return getRows().filter(r=>String(r?.fundsStatus||'').toLowerCase()==='pendiente de confirmar').slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')))}
   function persist(){try{if(typeof store==='function')store();localStorage.setItem('tmic_r',JSON.stringify(getRows()));return true}catch(e){console.error(e);return false}}
+
+  function stampPending(r){
+    if(!r||r.fundsStatus)return false;
+    r.fundsStatus='Pendiente de confirmar';
+    r.fundsRecordedAt=new Date().toISOString();
+    r.fundsRecordedBy=currentUser.name||'Usuario';
+    return true;
+  }
+
+  // Desde octubre 2026 todo ingreso nuevo debe pasar por confirmación de fondos.
+  // Esto también recupera registros creados mientras el wrapper de save no alcanzó a ejecutarse.
+  function adoptNewEraRecords(){
+    let changed=false;
+    for(const r of getRows()){
+      const d=String(r?.date||'');
+      if(d>=FEATURE_START && !r?.fundsStatus) changed=stampPending(r)||changed;
+    }
+    if(changed){persist();try{window.dispatchEvent(new Event('tm-state-updated'));window.tmRefreshSummaryWorkflow?.();}catch(_){ }}
+    return changed;
+  }
 
   function preserveFunds(oldRec,newRec){
     if(!oldRec||!newRec)return;
@@ -40,11 +62,7 @@
         const after=rows.find(r=>String(r.id)===editingId);preserveFunds(before,after);
       }else{
         const created=rows.slice().reverse().find(r=>!beforeIds.has(String(r.id)));
-        if(created&&!created.fundsStatus){
-          created.fundsStatus='Pendiente de confirmar';
-          created.fundsRecordedAt=new Date().toISOString();
-          created.fundsRecordedBy=currentUser.name||'Usuario';
-        }
+        if(created&&!created.fundsStatus) stampPending(created);
       }
       persist();
       try{window.dispatchEvent(new Event('tm-state-updated'));window.tmRefreshSummaryWorkflow?.();}catch(_){ }
@@ -82,6 +100,7 @@
   };
 
   function renderCard(){
+    adoptNewEraRecords();
     style();const grid=document.querySelector('#summary .grid2');if(!grid)return;
     let card=document.getElementById('tmFundsCard');const recent=document.getElementById('tmRecentStableCard');const review=document.getElementById('tmReviewQueueCard');
     if(!card){card=document.createElement('div');card.id='tmFundsCard';card.className='card box';if(review&&review.parentNode===grid)grid.insertBefore(card,review);else if(recent?.nextSibling)grid.insertBefore(card,recent.nextSibling);else grid.appendChild(card);}
@@ -94,5 +113,5 @@
   window.addEventListener('tm-state-updated',()=>setTimeout(renderCard,80));
   window.addEventListener('storage',e=>{if(e.key==='tmic_r')setTimeout(renderCard,80)});
   setInterval(renderCard,900);
-  setTimeout(renderCard,350);
+  loadIdentity().finally(()=>{adoptNewEraRecords();setTimeout(renderCard,120)});
 })();
