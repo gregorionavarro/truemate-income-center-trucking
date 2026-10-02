@@ -4,6 +4,14 @@
   const MONTH_KEY='tmic_view_month';
   const YEAR_KEY='tmic_view_year';
 
+  function applyBrandName(){
+    try{
+      document.title='TrueMate Income Center · Trucking & Commercial';
+      const h1=document.querySelector('.top h1');
+      if(h1)h1.textContent='TrueMate Income Center · Trucking & Commercial';
+    }catch(_){ }
+  }
+
   function ensureInitialPeriod(){
     const mo=document.getElementById('mo'),yr=document.getElementById('yr');
     if(!mo||!yr)return;
@@ -68,6 +76,6 @@
     return false;
   }
 
-  async function init(){ensureInitialPeriod();addRefreshButton();if(await isOwner())addOwnerLink();}
+  async function init(){applyBrandName();ensureInitialPeriod();addRefreshButton();if(await isOwner())addOwnerLink();}
   setTimeout(init,500);
 })();
