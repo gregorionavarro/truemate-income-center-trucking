@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TrueMate Income Center · Compartido</title>
+<title>TrueMate Income Center · Trucking & Commercial</title>
 <style>
 html,body{margin:0;height:100%;font-family:Inter,Arial,sans-serif;background:#f4f7fb}.wrap{height:100%;display:flex;flex-direction:column}.syncbar{height:42px;flex:0 0 42px;background:#102f51;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:12px;font-weight:700;box-sizing:border-box}.left{display:flex;align-items:center;gap:9px}.dot{width:9px;height:9px;border-radius:50%;background:#f0b429;box-shadow:0 0 0 3px rgba(255,255,255,.08)}.ok .dot{background:#2fc179}.bad .dot{background:#ef5d6c}.muted{opacity:.8;font-weight:500}iframe{border:0;width:100%;flex:1;background:#f4f7fb}
 </style>
@@ -46,7 +46,7 @@ async function injectTools(){
     for(const [id,src] of tools){if(d.getElementById(id))continue;await new Promise(resolve=>{const s=d.createElement('script');s.id=id;s.src=src;s.onload=resolve;s.onerror=resolve;d.head.appendChild(s)});}
   }catch(e){console.error(e)}
 }
-function compactDashboard(){try{const d=frame.contentDocument;if(!d)return;let st=d.getElementById('tm-compact-dashboard');if(!st){st=d.createElement('style');st.id='tm-compact-dashboard';st.textContent=`
+function compactDashboard(){try{const d=frame.contentDocument;if(!d)return;d.title='TrueMate Income Center · Trucking & Commercial';const brand=d.querySelector('.top h1');if(brand)brand.textContent='TrueMate Income Center · Trucking & Commercial';let st=d.getElementById('tm-compact-dashboard');if(!st){st=d.createElement('style');st.id='tm-compact-dashboard';st.textContent=`
 .grid2{display:block!important;margin-top:18px!important}.grid2>.card{width:100%!important}.grid2>.card+.card{margin-top:12px!important}
 #summary>.panel{padding-top:16px!important}
 #summary>.panel>.head{align-items:center!important;margin-bottom:12px!important}
