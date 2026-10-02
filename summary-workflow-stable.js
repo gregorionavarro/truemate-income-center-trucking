@@ -3,7 +3,7 @@
   window.__tmSummaryWorkflowStableLoaded=true;
 
   if(!document.getElementById('tm-funds-confirmation-script')){
-    const fs=document.createElement('script');fs.id='tm-funds-confirmation-script';fs.src='/funds-confirmation.js?v=1';document.head.appendChild(fs);
+    const fs=document.createElement('script');fs.id='tm-funds-confirmation-script';fs.src='/funds-confirmation.js?v=2';document.head.appendChild(fs);
   }
 
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
