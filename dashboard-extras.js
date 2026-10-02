@@ -56,8 +56,13 @@
     return d.toLocaleString('es-US',{month:'short',day:'2-digit',year:'numeric',hour:'numeric',minute:'2-digit'});
   }
 
+  function stableSettingsActive(){
+    const panel=document.querySelector('#settings .panel');
+    return !!(window.__tmSettingsStableLoaded||panel?.dataset?.tmStableSettings==='1'||panel?.querySelector('.tm-settings-grid'));
+  }
+
   function restoreSettingsCore(){
-    const panel=document.querySelector('#settings .panel');if(!panel)return;
+    const panel=document.querySelector('#settings .panel');if(!panel||stableSettingsActive())return;
     let analytics=panel.querySelector('.analytics');
     if(!analytics){
       analytics=document.createElement('div');analytics.className='analytics';
@@ -87,7 +92,7 @@
   }
 
   function teamActivity(){
-    const view=document.getElementById('settings');const panel=view?.querySelector('.panel');if(!panel)return;
+    const view=document.getElementById('settings');const panel=view?.querySelector('.panel');if(!panel||stableSettingsActive())return;
     restoreSettingsCore();
     let box=panel.querySelector('.tm-team-activity');
     if(!box){box=document.createElement('div');box.className='card box tm-team-activity';panel.appendChild(box)}
@@ -99,6 +104,6 @@
   const prior=window.render;if(typeof prior==='function')window.render=function(){prior();setTimeout(apply,180)};
   document.getElementById('mo')?.addEventListener('change',()=>setTimeout(()=>{feeBadge();operationalCounters()},120));
   document.getElementById('yr')?.addEventListener('change',()=>setTimeout(()=>{feeBadge();operationalCounters()},120));
-  setInterval(()=>{feeBadge();operationalCounters();restoreSettingsCore();teamActivity()},5000);
+  setInterval(()=>{feeBadge();operationalCounters();if(!stableSettingsActive()){restoreSettingsCore();teamActivity()}},5000);
   setTimeout(apply,250);
 })();
