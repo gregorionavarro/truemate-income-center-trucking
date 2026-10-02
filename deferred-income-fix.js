@@ -42,13 +42,41 @@
 
   function status(d){const n=dayDiff(d);if(n<0)return ['Vencido','late'];if(n===0)return ['Hoy','late'];if(n<=7)return [`${n} día${n===1?'':'s'}`,'proc'];return ['Pendiente','proc']}
 
+  function persistDeferred(){try{if(typeof store==='function')store();localStorage.setItem('tmic_r',JSON.stringify(S.r||[]));if(Array.isArray(S.t))localStorage.setItem('tmic_t',JSON.stringify(S.t));return true}catch(e){console.error(e);return false}}
+
+  window.tmDeleteDeferredSchedule=function(id,planId,index){
+    const r=rowsAll().find(x=>String(x.id)===String(id));if(!r)return;
+    const item=deferredRows().find(x=>String(x.r.id)===String(id)&&(planId?String(x.planId)===String(planId):x.index===+index));if(!item)return;
+    document.querySelector('.tm-def-delete-overlay')?.remove();
+    const o=document.createElement('div');o.className='tm-def-delete-overlay';
+    o.innerHTML=`<div class="tm-def-delete-card"><h3>Eliminar cobro diferido</h3><p><b>${esc(r.client||r.company||'Cliente')}</b> · ${esc(r.invoice||'')} · ${fmt(item.amount)}</p><p>Se eliminará únicamente esta programación de cobro. El ingreso original y su historial se conservan.</p><div><button class="tm-def-cancel" type="button">Cancelar</button><button class="tm-def-confirm" type="button">Eliminar diferido</button></div></div>`;
+    document.body.appendChild(o);
+    o.querySelector('.tm-def-cancel').onclick=()=>o.remove();o.addEventListener('click',e=>{if(e.target===o)o.remove()});
+    o.querySelector('.tm-def-confirm').onclick=()=>{
+      if(Array.isArray(r.deferredPlan)&&r.deferredPlan.length){
+        if(planId)r.deferredPlan=r.deferredPlan.filter(p=>String(p.id||'')!==String(planId));else r.deferredPlan.splice(+index,1);
+        if(Array.isArray(S.t)&&planId)S.t=S.t.filter(t=>String(t.planId||'')!==String(planId));
+        if(r.deferredPlan.length)reconcileRecord(r);else{r.pending=0;r.defAmt=0;r.defDate='';}
+      }else{r.pending=0;r.defAmt=0;r.defDate='';}
+      if(persistDeferred()){
+        o.remove();
+        try{if(typeof render==='function')render();}catch(_){}
+        setTimeout(renderDeferred,180);
+        if(typeof window.tmNotice==='function')window.tmNotice('La programación diferida fue eliminada. El ingreso original se conservó.','Diferido eliminado','success');
+      }else if(typeof window.tmNotice==='function')window.tmNotice('No se pudo guardar el cambio.','Diferido','error');
+    };
+  };
+
+  function ensureDeleteStyle(){if(document.getElementById('tm-def-delete-style'))return;const s=document.createElement('style');s.id='tm-def-delete-style';s.textContent=`.tm-def-delete{background:#fff0f2!important;color:#b33148!important;border:1px solid #f3c3cb!important}.tm-def-delete-overlay{position:fixed;inset:0;background:rgba(16,32,52,.48);z-index:120000;display:flex;align-items:center;justify-content:center;padding:20px}.tm-def-delete-card{width:min(480px,100%);background:#fff;border-radius:16px;padding:22px;box-shadow:0 24px 70px rgba(17,53,90,.28)}.tm-def-delete-card h3{margin:0 0 10px;color:#173f69}.tm-def-delete-card p{color:#5f7185;line-height:1.5}.tm-def-delete-card>div{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}.tm-def-delete-card button{border:0;border-radius:10px;padding:10px 14px;font-weight:900;cursor:pointer}.tm-def-cancel{background:#edf4fb;color:#173f69}.tm-def-confirm{background:#fff0f2;color:#b33148;border:1px solid #f3c3cb!important}`;document.head.appendChild(s)}
+
   function renderDeferred(){
+    ensureDeleteStyle();
     const body=document.getElementById('defBody'); if(!body)return;
     const table=body.closest('table'); if(!table)return;
     const hr=table.querySelector('thead tr');
     if(hr) hr.innerHTML='<th>Cliente</th><th>Invoice</th><th>Fecha</th><th>Monto</th><th>Estado</th><th>Acción</th>';
     const rows=deferredRows();
-    body.innerHTML=rows.map(x=>{const [txt,cls]=status(x.date);const inv=String(x.r.invoice||'').replace(/'/g,"\\'");return `<tr><td>${esc(x.r.client||'')}</td><td><button class="tm-link" onclick="tmInvoiceDetail('${inv}')">${esc(x.r.invoice||'')}</button></td><td>${esc(x.date||'—')}</td><td><b>${fmt(x.amount)}</b></td><td><span class="badge ${cls}">${txt}</span></td><td><div class="tm-actions"><button class="tm-mini green" onclick="tmRegisterDeferredPayment('${x.r.id}'${x.planId?`, '${String(x.planId).replace(/'/g,"\\'")}'`:''})">Registrar pago</button><button class="tm-mini amber" onclick="tmReprogram('${x.r.id}')">Reprogramar</button><button class="tm-mini" onclick="tmInvoiceDetail('${inv}')">Ver factura</button></div></td></tr>`}).join('')||'<tr><td colspan="6">Sin diferidos pendientes</td></tr>';
+    body.innerHTML=rows.map(x=>{const [txt,cls]=status(x.date);const inv=String(x.r.invoice||'').replace(/'/g,"\\'");const pid=String(x.planId||'').replace(/'/g,"\\'");return `<tr><td>${esc(x.r.client||'')}</td><td><button class="tm-link" onclick="tmInvoiceDetail('${inv}')">${esc(x.r.invoice||'')}</button></td><td>${esc(x.date||'—')}</td><td><b>${fmt(x.amount)}</b></td><td><span class="badge ${cls}">${txt}</span></td><td><div class="tm-actions"><button class="tm-mini green" onclick="tmRegisterDeferredPayment('${x.r.id}'${x.planId?`, '${pid}'`:''})">Registrar pago</button><button class="tm-mini amber" onclick="tmReprogram('${x.r.id}')">Reprogramar</button><button class="tm-mini" onclick="tmInvoiceDetail('${inv}')">Ver factura</button><button class="tm-mini tm-def-delete" onclick="tmDeleteDeferredSchedule('${x.r.id}','${pid}',${x.index})">Eliminar</button></div></td></tr>`}).join('')||'<tr><td colspan="6">Sin diferidos pendientes</td></tr>';
     const near=document.getElementById('nearDef');
     if(near) near.textContent=rows.filter(x=>dayDiff(x.date)<=7).length;
   }
