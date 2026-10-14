@@ -36,7 +36,7 @@
   function badge(st){const s=String(st||'Pendiente de completar');const c=s==='Pagado'?'ok':s==='Revisado'?'proc':'tm-pending-complete';return `<span class="badge ${c}">${esc(s)}</span>`;}
   function popup(title,body,footer){document.querySelector('.tm-overlay')?.remove();const o=document.createElement('div');o.className='tm-overlay';o.innerHTML=`<div class="tm-pop"><div class="tm-pop-h"><h3>${title}</h3><button class="tm-close" type="button">×</button></div><div class="tm-pop-b">${body}</div><div class="tm-pop-f">${footer}</div></div>`;o.querySelector('.tm-close').onclick=()=>o.remove();o.addEventListener('click',e=>{if(e.target===o)o.remove()});document.body.appendChild(o);return o;}
   function toast(title,text){document.querySelector('.tm-toast')?.remove();const t=document.createElement('div');t.className='tm-toast';t.innerHTML=`<div class="tm-toast-icon">✓</div><div><h4>${esc(title)}</h4><p>${esc(text)}</p></div><button type="button">×</button>`;t.querySelector('button').onclick=()=>t.remove();document.body.appendChild(t);setTimeout(()=>t.remove(),5200);}
-  function snapshot(r){return {carrier:r.carrier||'',carrierAmt:+(r.carrierAmt||0),carrierDue:r.carrierDue||'',carrierStatus:r.carrierStatus||'',carrierPaidDate:r.carrierPaidDate||'',note:r.note||'',carrierPreparedBy:r.carrierPreparedBy||'',carrierReviewedBy:r.carrierReviewedBy||'',carrierPaidBy:r.carrierPaidBy||''};}
+  function snapshot(r){return {carrier:r.carrier||'',carrierAmt:+(r.carrierAmt||0),carrierDue:r.carrierDue||'',carrierStatus:r.carrierStatus||'',carrierPaidDate:r.carrierPaidDate||'',note:r.note||'',carrierPreparedBy:r.carrierPreparedBy||'',carrierReviewedBy:r.carrierReviewedBy||'',carrierPaidBy:r.carrierPaidBy||'',carrierUpdatedAt:r.carrierUpdatedAt||'',carrierUpdatedBy:r.carrierUpdatedBy||''};}
   function persist(){try{if(typeof store==='function')store();localStorage.setItem('tmic_r',JSON.stringify(S.r||[]));return true}catch(e){console.error(e);alert('No se pudo guardar el Carrier/PFA.');return false}}
   async function audit(action,r,detail,before,after){try{await fetch('/api/audit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({user_name:currentUser.name,module:'Carrier / PFA',action,ref:r.invoice||r.id||'',detail,before,after})});}catch(_){}}
 
@@ -60,7 +60,7 @@
     const reviewName=nameFor(reviewEmail)||'Operaciones',payName=nameFor(payEmail)||'Owner';
     const assigned=status==='Revisado'?(r.carrierAssignedTo||payName):status==='Pagado'?'—':reviewName;
     const options='<option value="">Seleccionar…</option>'+(S.c||[]).map(c=>`<option value="${esc(c)}" ${c===r.carrier?'selected':''}>${esc(c)}</option>`).join('');
-    const reviewedBy=r.carrierReviewedBy||'—',updated=r.carrierPaidAt||r.carrierReviewedAt||r.carrierPreparedAt||'';
+    const reviewedBy=r.carrierReviewedBy||'—',updated=r.carrierUpdatedAt||r.carrierPaidAt||r.carrierReviewedAt||r.carrierPreparedAt||'';
     const reviewBox=status==='Pagado'?`<div class="tm-review-flex-box"><div class="tm-review-flex-title">Revisión completada</div>El caso fue revisado por <b>${esc(reviewedBy)}</b> y ya está registrado como Pagado.</div>`:status==='Revisado'?`<div class="tm-review-flex-box"><div class="tm-review-flex-title">Revisión completada</div>Revisado por <b>${esc(reviewedBy)}</b>. Ahora el responsable principal de pago es <b>${esc(payName)}</b>.</div>`:`<div class="tm-review-flex-box"><div class="tm-review-flex-title">Revisión pendiente</div>Responsable principal: <b>${esc(reviewName)}</b>. Si esa persona no está disponible, <b>otro usuario activo del equipo puede finalizar la revisión</b>; el sistema guardará exactamente quién la realizó.</div>`;
     const payBlock=status==='Revisado'&&canPay()?`<div class="tm-flex-pay"><b style="color:#173f69">Listo para pago</b><div class="sub">Asignado principalmente a ${esc(payName)}.</div><label>Fecha de pago al Carrier</label><input id="tmFlexPaidDate" type="date" value="${esc(r.carrierPaidDate||today())}"></div>`:'';
     const paidEdit=status==='Pagado'?`<div class="tm-flex-pay"><b style="color:#173f69">Pago registrado</b><div class="tm-pay-meta">Registrado por <b>${esc(r.carrierPaidBy||'—')}</b> · ${esc(stamp(r.carrierPaidAt))}</div><label>Fecha de pago al Carrier</label><input id="tmFlexPaidDate" type="date" value="${esc(r.carrierPaidDate||today())}"></div>`:'';
@@ -73,7 +73,18 @@
     else footer+='<button class="btn navy" id="tmFlexSave" type="button">Guardar borrador</button>';
     const o=popup(`Completar Carrier / PFA · ${esc(r.invoice||'')}`,body,footer);o.querySelector('#tmFlexCancel').onclick=()=>o.remove();
     const read=()=>({carrier:o.querySelector('#tmFlexCarrier').value,due:o.querySelector('#tmFlexDue').value,amount:+(o.querySelector('#tmFlexAmount').value||0),note:o.querySelector('#tmFlexNote').value.trim()});
-    const draft=v=>{r.carrier=v.carrier;r.carrierAmt=v.amount;r.downPayment=r.downPayment||v.amount;r.carrierDue=v.due;r.note=v.note;r.carrierPreparedBy=currentUser.name;r.carrierPreparedEmail=currentUser.email;r.carrierPreparedAt=nowIso();r.carrierNeedsCompletion=!(v.carrier&&v.due);};
+    const draft=v=>{
+      r.carrier=v.carrier;r.carrierAmt=v.amount;r.downPayment=r.downPayment||v.amount;r.carrierDue=v.due;r.note=v.note;
+      // Preserve the original preparer; never attribute an existing record to a later editor.
+      if(!r.carrierPreparedBy&&currentUser.email){
+        r.carrierPreparedBy=currentUser.name;
+        r.carrierPreparedEmail=currentUser.email;
+        r.carrierPreparedAt=r.carrierPreparedAt||nowIso();
+      }
+      r.carrierUpdatedAt=nowIso();
+      if(currentUser.email){r.carrierUpdatedBy=currentUser.name;r.carrierUpdatedEmail=currentUser.email;}
+      r.carrierNeedsCompletion=!(v.carrier&&v.due);
+    };
 
     o.querySelector('#tmFlexSave')?.addEventListener('click',async()=>{const before=snapshot(r),v=read();draft(v);if(status==='Pagado'){const d=o.querySelector('#tmFlexPaidDate')?.value;if(!d)return alert('Coloca la fecha de pago al Carrier.');r.carrierPaidDate=d;r.carrierStatus='Pagado';r.carrierNeedsCompletion=false;}if(!persist())return;o.remove();refreshAll();await audit('Actualizó',r,`Actualizó información de Carrier/PFA. Estado: ${status}.`,before,snapshot(r));toast('Cambios guardados',`Se actualizó ${r.invoice||'el registro'} correctamente.`);});
     o.querySelector('#tmFlexReview')?.addEventListener('click',async()=>{const v=read();if(!v.carrier||!v.due||v.amount<=0)return alert('Completa Carrier, monto y fecha límite.');if(!v.note)return alert('Agrega nota, número de póliza o referencia.');const before=snapshot(r);draft(v);const t=nowIso();r.carrierStatus='Revisado';r.carrierReviewedBy=currentUser.name;r.carrierReviewedEmail=currentUser.email;r.carrierReviewedAt=t;r.carrierAssignedTo=payName;r.carrierAssignedEmail=payEmail;r.carrierNeedsCompletion=false;if(!persist())return;o.remove();refreshAll();await audit('Marcó Revisado',r,`Responsable principal: ${reviewName}. Revisión finalizada por ${currentUser.name}. Asignado para pago a ${payName}.`,before,snapshot(r));toast('Revisión completada',`Revisado por ${currentUser.name}. Quedó listo para pago por ${payName}.`);});
