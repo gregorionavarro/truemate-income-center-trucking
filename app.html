@@ -8,7 +8,7 @@
       if(email){
         const known={'gregorio.navarro@truemategroup.com':'Gregorio Navarro','paulina@truemategroup.com':'Paulina Restrepo','camila@truemategroup.com':'Camila Penagos','fabiola.bermudez@truemategroup.com':'Fabiola Bermudez'};
         r.carrierPreparedEmail=email;
-        r.carrierPreparedBy=known[email]||email.split('@')[0].replace(/[._-]+/g,' ').replace(/\\b\\w/g,ch=>ch.toUpperCase());
+        r.carrierPreparedBy=known[email]||email.split('@')[0].replace(/[._-]+/g,' ').replace(/\b\w/g,ch=>ch.toUpperCase());
         r.carrierPreparedAt=new Date().toISOString();
         r.carrierUpdatedAt=r.carrierPreparedAt;
         r.carrierUpdatedBy=r.carrierPreparedBy;
