@@ -57,7 +57,7 @@
   window.tmOpenUpcomingCarrierPayment=openPayment;
 
   function buildCarrierCard(){
-    const grid=document.querySelector('#summary .grid2'); if(!grid||grid.children.length<2)return;
+    const grid=document.querySelector('#summary .grid2'); if(!grid||grid.children.length<2||grid.dataset.tmWorkflowStable==='1')return;
     const card=grid.children[1];
     const rows=(Array.isArray(window.S?.r)?S.r:[])
       .filter(r=>(+r.carrierAmt||+r.downPayment||0)>0&&String(r.carrierStatus||'').toLowerCase()!=='pagado')
