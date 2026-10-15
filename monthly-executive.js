@@ -46,7 +46,29 @@
   function carrierDetail(name){
     const rows=carrierMonthRows().filter(r=>r.carrier===name).slice().sort((a,b)=>carrierPaidDate(b).localeCompare(carrierPaidDate(a)));
     const total=rows.reduce((a,r)=>a+(+r.carrierAmt||0),0);
-    popup(`Aseguradora · ${esc(name)} · ${esc(monthLabel())}`,`<div class="tm-exec-summary"><div class="tm-exec-kpi"><small>Total pagado mes</small><b>${fmt(total)}</b></div><div class="tm-exec-kpi"><small>Pagos</small><b>${rows.length}</b></div><div class="tm-exec-kpi"><small>Clientes</small><b>${new Set(rows.map(r=>r.client)).size}</b></div></div><div class="tablewrap"><table class="tm-exec-detail-table"><thead><tr><th>Fecha pago</th><th>Cliente</th><th>Invoice</th><th>Monto</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(carrierPaidDate(r)||'')}</td><td>${esc(r.client||'')}</td><td>${esc(r.invoice||'')}</td><td><b>${fmt(r.carrierAmt)}</b></td></tr>`).join('')||'<tr><td colspan="4">Sin pagos registrados en este mes.</td></tr>'}</tbody></table></div>`);
+    popup(`Aseguradora · ${esc(name)} · ${esc(monthLabel())}`,`<div class="tm-exec-summary"><div class="tm-exec-kpi"><small>Total pagado mes</small><b>${fmt(total)}</b></div><div class="tm-exec-kpi"><small>Pagos</small><b>${rows.length}</b></div><div class="tm-exec-kpi"><small>Clientes</small><b>${new Set(rows.map(r=>r.client)).size}</b></div></div><div class="tablewrap"><table class="tm-exec-detail-table"><thead><tr><th>Fecha pago</th><th>Cliente</th><th>Invoice</th><th>Monto</th><th>Comprobantes</th></tr></thead><tbody>${rows.map((r,i)=>`<tr><td>${esc(carrierPaidDate(r)||'')}</td><td>${esc(r.client||'')}</td><td>${esc(r.invoice||'')}</td><td><b>${fmt(r.carrierAmt)}</b></td><td data-receipt-row="${i}">Cargando…</td></tr>`).join('')||'<tr><td colspan="5">Sin pagos registrados en este mes.</td></tr>'}</tbody></table></div>`);
+    const overlay=document.querySelector('.tm-overlay');
+    rows.forEach(async(r,i)=>{
+      const cell=overlay?.querySelector('[data-receipt-row="'+i+'"]');
+      if(!cell)return;
+      if(!r.id){cell.textContent='Sin identificador';return;}
+      const base='/api/carrier-receipts?record_id='+encodeURIComponent(String(r.id));
+      try{
+        const response=await fetch(base,{cache:'no-store'});
+        const data=await response.json();
+        if(!response.ok)throw Error(data.error||'No disponible');
+        if(!cell.isConnected)return;
+        cell.replaceChildren();
+        if(!data.items?.length){cell.textContent='Sin comprobante';return;}
+        for(const item of data.items){
+          const group=document.createElement('div');group.style.cssText='display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:5px 0';
+          const name=document.createElement('span');name.textContent=item.original_name;name.style.cssText='max-width:220px;overflow-wrap:anywhere';
+          const view=document.createElement('a');view.href=base+'&receipt_id='+encodeURIComponent(item.id)+'&inline=1';view.target='_blank';view.rel='noopener';view.textContent='Ver';
+          const download=document.createElement('a');download.href=base+'&receipt_id='+encodeURIComponent(item.id);download.textContent='Descargar';
+          group.append(name,view,download);cell.append(group);
+        }
+      }catch(error){if(cell.isConnected)cell.textContent='No disponible: '+error.message;}
+    });
   }
 
   function methodDetail(name){
