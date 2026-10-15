@@ -64,7 +64,7 @@
     const reviewBox=status==='Pagado'?`<div class="tm-review-flex-box"><div class="tm-review-flex-title">Revisión completada</div>El caso fue revisado por <b>${esc(reviewedBy)}</b> y ya está registrado como Pagado.</div>`:status==='Revisado'?`<div class="tm-review-flex-box"><div class="tm-review-flex-title">Revisión completada</div>Revisado por <b>${esc(reviewedBy)}</b>. Ahora el responsable principal de pago es <b>${esc(payName)}</b>.</div>`:`<div class="tm-review-flex-box"><div class="tm-review-flex-title">Revisión pendiente</div>Responsable principal: <b>${esc(reviewName)}</b>. Si esa persona no está disponible, <b>otro usuario activo del equipo puede finalizar la revisión</b>; el sistema guardará exactamente quién la realizó.</div>`;
     const payBlock=status==='Revisado'&&canPay()?`<div class="tm-flex-pay"><b style="color:#173f69">Listo para pago</b><div class="sub">Asignado principalmente a ${esc(payName)}.</div><label>Fecha de pago al Carrier</label><input id="tmFlexPaidDate" type="date" value="${esc(r.carrierPaidDate||today())}"></div>`:'';
     const paidEdit=status==='Pagado'?`<div class="tm-flex-pay"><b style="color:#173f69">Pago registrado</b><div class="tm-pay-meta">Registrado por <b>${esc(r.carrierPaidBy||'—')}</b> · ${esc(stamp(r.carrierPaidAt))}</div><label>Fecha de pago al Carrier</label><input id="tmFlexPaidDate" type="date" value="${esc(r.carrierPaidDate||today())}"></div>`:'';
-    const body=`<div class="tm-kpis"><div class="tm-kpi"><small>Cliente</small><b style="font-size:16px">${esc(r.client||'')}</b></div><div class="tm-kpi"><small>Invoice</small><b style="font-size:16px">${esc(r.invoice||'')}</b></div><div class="tm-kpi"><small>Down Payment</small><b>${fmt(r.downPayment||r.carrierAmt)}</b></div><div class="tm-kpi"><small>Estado actual</small><b>${badge(status)}</b></div></div><div class="tm-grid"><div class="tm-field"><label>Carrier / MGA / PFA</label><select id="tmFlexCarrier">${options}</select></div><div class="tm-field"><label>Monto a pagar</label><input id="tmFlexAmount" type="number" min="0" step="0.01" value="${+r.carrierAmt||+r.downPayment||0}"></div><div class="tm-field"><label>Fecha límite</label><input id="tmFlexDue" type="date" value="${esc(r.carrierDue||'')}"></div><div class="tm-flex-audit"><div class="tm-flex-grid"><div class="tm-flex-item"><small>Preparado por</small><b>${esc(r.carrierPreparedBy||'—')}</b></div><div class="tm-flex-item"><small>Revisado por</small><b>${esc(reviewedBy)}</b></div><div class="tm-flex-item"><small>Última actualización</small><b>${esc(stamp(updated))}</b></div><div class="tm-flex-item"><small>Estado</small><b>${badge(status)}</b></div><div class="tm-flex-item"><small>Asignado principal</small><b>${esc(assigned)}</b></div></div></div><div class="tm-field" style="grid-column:1/-1"><label>Depósito confirmado por</label><b>${esc(r.depositConfirmedBy||'—')}</b></div><div class="tm-field" style="grid-column:1/-1"><label>Nota / número de póliza / referencia</label><textarea id="tmFlexNote">${esc(r.note||'')}</textarea></div>${reviewBox}${payBlock}${paidEdit}</div>`;
+    const body=`<div class="tm-kpis"><div class="tm-kpi"><small>Cliente</small><b style="font-size:16px">${esc(r.client||'')}</b></div><div class="tm-kpi"><small>Invoice</small><b style="font-size:16px">${esc(r.invoice||'')}</b></div><div class="tm-kpi"><small>Down Payment</small><b>${fmt(r.downPayment||r.carrierAmt)}</b></div><div class="tm-kpi"><small>Estado actual</small><b>${badge(status)}</b></div></div><div class="tm-grid"><div class="tm-field"><label>Carrier / MGA / PFA</label><select id="tmFlexCarrier">${options}</select></div><div class="tm-field"><label>Monto a pagar</label><input id="tmFlexAmount" type="number" min="0" step="0.01" value="${+r.carrierAmt||+r.downPayment||0}"></div><div class="tm-field"><label>Fecha límite</label><input id="tmFlexDue" type="date" value="${esc(r.carrierDue||'')}"></div><div class="tm-flex-audit"><div class="tm-flex-grid"><div class="tm-flex-item"><small>Preparado por</small><b>${esc(r.carrierPreparedBy||'—')}</b></div><div class="tm-flex-item"><small>Revisado por</small><b>${esc(reviewedBy)}</b></div><div class="tm-flex-item"><small>Última actualización</small><b>${esc(stamp(updated))}</b></div><div class="tm-flex-item"><small>Estado</small><b>${badge(status)}</b></div><div class="tm-flex-item"><small>Asignado principal</small><b>${esc(assigned)}</b></div></div></div><div class="tm-field" style="grid-column:1/-1"><label>Depósito confirmado por</label><b>${esc(r.depositConfirmedBy||'—')}</b></div><div class="tm-field" style="grid-column:1/-1"><label>Nota / número de póliza / referencia</label><textarea id="tmFlexNote">${esc(r.note||'')}</textarea></div>${reviewBox}${payBlock}${paidEdit}${['Pagado','Revisado'].includes(status)?`<div class="tm-flex-pay" style="grid-column:1/-1"><b>Comprobantes de pago</b><p>JPG, PNG o PDF (máximo 10 MB)</p><input id="tmReceiptFile" type="file" accept="image/jpeg,image/png,application/pdf"><button id="tmReceiptUpload" type="button" class="btn soft">Subir comprobante</button><div id="tmReceiptList" style="margin-top:12px">Cargando comprobantes…</div></div>`:''}</div>`;
     let footer='<button class="btn soft" id="tmFlexCancel" type="button">Cancelar</button>';
     if(status==='Pagado')footer+='<button class="btn navy" id="tmFlexSave" type="button">Guardar cambios</button>';
     else if(status==='Revisado'&&canPay())footer+='<button class="btn navy" id="tmFlexPay" type="button">Registrar pago</button>';
@@ -76,6 +76,39 @@
       footer+='<button class="btn soft" id="tmRestore373" type="button">Restaurar responsables históricos</button>';
     }
     const o=popup(`Completar Carrier / PFA · ${esc(r.invoice||'')}`,body,footer);o.querySelector('#tmFlexCancel').onclick=()=>o.remove();
+
+    if(['Pagado','Revisado'].includes(status)){
+      const list=o.querySelector('#tmReceiptList');
+      const endpoint='/api/carrier-receipts?record_id='+encodeURIComponent(String(r.id));
+      const load=async()=>{
+        try{
+          const response=await fetch(endpoint,{cache:'no-store'}),data=await response.json();
+          if(!response.ok)throw Error(data.error||'No se pudieron leer los comprobantes.');
+          list.replaceChildren();
+          if(!data.items?.length){list.textContent='No hay comprobantes adjuntos.';return;}
+          for(const item of data.items){
+            const line=document.createElement('div');line.style.margin='8px 0';
+            const label=document.createElement('span');label.textContent=item.original_name+' · '+item.uploaded_by+' · ';
+            const link=document.createElement('a');link.textContent='Descargar';link.href=endpoint+'&receipt_id='+encodeURIComponent(item.id);link.target='_blank';link.rel='noopener';
+            line.append(label,link);list.append(line);
+          }
+        }catch(err){list.textContent=err.message;}
+      };
+      o.querySelector('#tmReceiptUpload')?.addEventListener('click',async()=>{
+        const input=o.querySelector('#tmReceiptFile'),file=input?.files?.[0];
+        if(!file)return alert('Selecciona un comprobante.');
+        if(file.size>10485760)return alert('El máximo es 10 MB.');
+        const button=o.querySelector('#tmReceiptUpload');button.disabled=true;button.textContent='Subiendo…';
+        try{
+          const form=new FormData();form.append('file',file);
+          const response=await fetch(endpoint,{method:'POST',body:form}),data=await response.json();
+          if(!response.ok)throw Error(data.error||'No se pudo subir.');
+          input.value='';await load();toast('Comprobante guardado','Soporte asociado a '+r.invoice);
+        }catch(err){alert(err.message);}finally{button.disabled=false;button.textContent='Subir comprobante';}
+      });
+      load();
+    }
+
     o.querySelector('#tmRestore373')?.addEventListener('click',async()=>{
       if(!confirm('INV-000373: registrar a Camila Penagos como preparadora y a Gregorio Navarro como quien confirmó el depósito, sin cambiar los estados ni montos. ¿Continuar?'))return;
       const before=snapshot(r);
