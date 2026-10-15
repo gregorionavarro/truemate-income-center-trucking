@@ -61,11 +61,11 @@
         cell.replaceChildren();
         if(!data.items?.length){cell.textContent='Sin comprobante';return;}
         for(const item of data.items){
-          const group=document.createElement('div');group.style.cssText='display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:5px 0';
-          const name=document.createElement('span');name.textContent=item.original_name;name.style.cssText='max-width:220px;overflow-wrap:anywhere';
+          const group=document.createElement('div');group.style.cssText='display:flex;flex-direction:column;align-items:flex-start;gap:7px;margin:6px 0;min-width:0;max-width:100%';
+          const name=document.createElement('div');name.textContent=item.original_name;name.title=item.original_name;name.style.cssText='display:block;max-width:100%;min-width:0;overflow-wrap:anywhere;word-break:break-word;font-size:12px;line-height:1.4';
           const view=document.createElement('a');view.href=base+'&receipt_id='+encodeURIComponent(item.id)+'&inline=1';view.target='_blank';view.rel='noopener';view.textContent='Ver';
           const download=document.createElement('a');download.href=base+'&receipt_id='+encodeURIComponent(item.id);download.textContent='Descargar';
-          group.append(name,view,download);cell.append(group);
+          const actions=document.createElement('div');actions.style.cssText='display:flex;flex-wrap:wrap;gap:12px;align-items:center';actions.append(view,download);group.append(name,actions);cell.style.cssText='min-width:210px;max-width:340px;white-space:normal;vertical-align:top';cell.append(group);
         }
       }catch(error){if(cell.isConnected)cell.textContent='No disponible: '+error.message;}
     });
