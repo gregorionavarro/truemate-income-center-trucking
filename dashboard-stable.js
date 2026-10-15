@@ -95,6 +95,7 @@
   window.tmStableOpenCarrier=openCarrier;
 
   function renderCarrierStable(){
+    if(document.querySelector('#summary .grid2')?.dataset.tmWorkflowStable==='1')return;
     const grid=document.querySelector('#summary .grid2');
     if(!grid || grid.children.length<2) return;
     const card=grid.children[1];
