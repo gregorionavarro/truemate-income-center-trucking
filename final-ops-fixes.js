@@ -109,7 +109,7 @@
   function fmtDate(v){if(!v)return'—';const d=new Date(v+'T12:00:00');return Number.isNaN(d.getTime())?esc(v):d.toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'numeric'});}
 
   function renderUpcomingCarrier(){
-    const grid=document.querySelector('#summary .grid2'); if(!grid||grid.children.length<2)return;
+    const grid=document.querySelector('#summary .grid2'); if(!grid||grid.children.length<2||grid.dataset.tmWorkflowStable==='1')return;
     const card=grid.children[1];
     const rows=(S.r||[]).filter(r=>(+r.carrierAmt||+r.downPayment||0)>0&&r.carrierDue&&String(r.carrierStatus||'').toLowerCase()!=='pagado').slice().sort((a,b)=>String(a.carrierDue||'').localeCompare(String(b.carrierDue||''))).slice(0,5);
     card.innerHTML=`<div class="head"><div><h3>Próximos pagos a Carrier / MGA / PFA</h3></div><button class="btn soft" type="button" onclick="go('carrier')">Ver todos los pagos →</button></div><div class="tablewrap"><table><thead><tr><th>Carrier / MGA / PFA</th><th>Cliente</th><th>Invoice</th><th>Monto a pagar</th><th>Fecha límite</th><th>Días restantes</th><th>Acción</th></tr></thead><tbody>${rows.length?rows.map(r=>{const [txt,cls]=daysLabel(r.carrierDue);return `<tr class="tm-carrier-row" onclick="tmEditCarrierObligation('${r.id}')"><td><b>${esc(r.carrier||'Pendiente de completar')}</b></td><td>${esc(r.client||'')}</td><td>${esc(r.invoice||'')}</td><td><b>${fmt(r.carrierAmt||r.downPayment)}</b></td><td>${fmtDate(r.carrierDue)}</td><td><span class="tm-days ${cls}">${txt}</span></td><td><button class="tm-open-carrier" onclick="event.stopPropagation();tmEditCarrierObligation('${r.id}')">Abrir</button></td></tr>`}).join(''):'<tr><td colspan="7">Sin pagos pendientes a Carrier / MGA / PFA.</td></tr>'}</tbody></table></div>`;
