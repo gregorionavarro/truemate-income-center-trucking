@@ -19,7 +19,7 @@ export async function onRequest({request,env}){
      const meta=await db.prepare("SELECT * FROM carrier_receipts WHERE id=? AND record_id=?").bind(receiptId,id).first();
      if(!meta)return reply({ok:false,error:"Comprobante no encontrado"},404);
      const obj=await bucket.get(meta.object_key);if(!obj)return reply({ok:false,error:"Archivo no disponible"},404);
-     return new Response(obj.body,{headers:{"content-type":meta.mime,"content-disposition":'attachment; filename="'+meta.original_name.replace(/["\\\r\n]/g,"_")+'"',"cache-control":"private, no-store","x-content-type-options":"nosniff"}});
+     return new Response(obj.body,{headers:{"content-type":meta.mime,"content-disposition":(url.searchParams.get('inline')==='1'?'inline':'attachment')+'; filename="'+meta.original_name.replace(/["\\\r\n]/g,"_")+'"',"cache-control":"private, no-store","x-content-type-options":"nosniff"}});
    }
    const rows=await db.prepare("SELECT id,original_name,mime,byte_size,uploaded_by,uploaded_at FROM carrier_receipts WHERE record_id=? ORDER BY uploaded_at DESC").bind(id).all();
    return reply({ok:true,items:rows.results||[]});
