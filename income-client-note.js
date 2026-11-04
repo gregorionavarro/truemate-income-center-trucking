@@ -40,35 +40,8 @@
   const prevClose=window.closeModal;
   if(typeof prevClose==='function')window.closeModal=function(){prevClose();setTimeout(()=>{editingId=null;},0);};
 
-  const prevSave=window.save;
-  if(typeof prevSave==='function')window.save=async function(){
-    const input=$('tmClientNote');
-    const note=String(input?.value||'').trim();
-    const id=editingId;
-    const invoice=String($('invoice')?.value||'').trim();
-    const beforeIds=new Set((S.r||[]).map(x=>String(x.id)));
-
-    // Wait for the original async save to finish (including /api/whoami).
-    // A fixed delay could run before a new income record exists.
-    await prevSave();
-
-    // If validation failed the modal stays open; do not modify any record.
-    if($('modal')?.classList.contains('on'))return;
-
-    let rec=id?(S.r||[]).find(x=>String(x.id)===String(id)):null;
-    if(!rec)rec=[...(S.r||[])].reverse().find(x=>!beforeIds.has(String(x.id)));
-    if(!rec&&invoice&&!id)rec=[...(S.r||[])].reverse().find(x=>String(x.invoice||'').trim()===invoice);
-    if(!rec){console.error('No se encontró el ingreso para guardar la nota');return;}
-
-    // Only touch the note on the saved record, preserving financial fields.
-    rec.clientNote=note;
-    try{
-      if(typeof store==='function')store();
-      else localStorage.setItem('tmic_r',JSON.stringify(S.r||[]));
-      if(typeof render==='function')render();
-    }catch(e){console.error('client note save',e);}
-    editingId=null;
-  };
+  // Note persistence is part of app.html's canonical save() record.
+  // Do not wrap save(): other async validation/producer wrappers may return early.
 
   setTimeout(()=>ensureField(editingId),500);
 })();
