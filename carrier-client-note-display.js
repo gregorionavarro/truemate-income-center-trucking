@@ -3,7 +3,7 @@
   window.__tmCarrierClientNoteDisplayLoaded = true;
   function showNote() {
     const popup = document.querySelector('.tm-overlay .tm-pop');
-    if (!popup || popup.querySelector('#tmCarrierClientNoteDisplay')) return;
+    if (!popup || popup.querySelector('#tmCarrierClientNoteDisplay') || [...popup.querySelectorAll('label')].some(x => x.textContent.includes('Nota importante del cliente'))) return;
     const heading = popup.querySelector('h3')?.textContent || '';
     if (!heading.includes('Carrier / PFA')) return;
     const invoice = heading.split('·').slice(1).join('·').trim();
